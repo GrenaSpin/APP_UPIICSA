@@ -11,23 +11,23 @@
     <content class="icon-upiicsa">
         <img src="../img/icon-upiicsa.png" alt="UPIICSA Logo">
     </content>
-    <content class="content-form">
-        <div class="form-container">
-            <i class="fa-regular fa-circle-user"></i>
-            <form method="post">      
+    <content class="container login">
+        <content class="content-form login">            
+            <form class="form-container" method="post">      
+                <i class="fa-regular fa-circle-user"></i>
+            <div class="username login">    
                 <input type="text" id="username" name="username" required>
                 <label for="username">Nombre de usuario</label>
-                <br>
+            </div>
+            <div class="password login">
                 <input type="password" id="password" name="password" required>
                 <label for="password">Contraseña</label>
-                <br>
-                <input type="submit" value="Iniciar Sesión">
-                <br>
-                <a href="#">Olvidaste mi contraseña</a>
-                <br><br>
-                <a href="/html/register.html">¿No tienes una cuenta? Regístrate</a>
+            </div>
+            <input class="submit login" type="submit" value="Iniciar Sesión">
+            <a href="#" class="">Olvide mi contraseña</a>
+            <a href="/html/register.html">¿No tienes una cuenta? Regístrate</a>
             </form>
-        </div>
+        </content>
     </content>
 </body>
 </html>
