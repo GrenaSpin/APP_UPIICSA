@@ -9,7 +9,7 @@
 </head>
 <body class="all-page">
     <content class="icon-upiicsa">
-            <img src="../img/icon-upiicsa.png" alt="UPIICSA Logo">
+            <a href="/html/home.html" class="navbar-logo"><img src="../img/icon-upiicsa.png" alt="UPIICSA Logo"></a>
     </content>
     <content class="container register">
         <content class="content-form register">

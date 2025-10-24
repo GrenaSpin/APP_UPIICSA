@@ -2,11 +2,11 @@
 /* Estilos para el formulario de registro UPIICSA */
 
 :root {
-  --green: #0b6b2d;
+  --green: #004433;
   --accent: #54c0e8;
   --white: #ffffff;
   --yellow: #FFFC46;
-  --button: #198e07;
+  --button: #007D3C;
 }
 
 * {
@@ -140,6 +140,14 @@ div.username.login, div.password.login {
   border-radius: 25px;
   margin-top: 10px;
 }
+
+/* Apartado para el navbar */
+
+
+
+/* Apartado para el slidebar */
+
+
 
 a {
   color: var(--yellow);
