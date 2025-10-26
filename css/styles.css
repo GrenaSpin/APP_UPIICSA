@@ -12,9 +12,17 @@
 * {
   box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  margin: 0;
 }
 
-body.all-page {
+body {
+  display: flex;
+  height: 100vh;
+  background-color: #ececec;
+  background-position: center;
+}
+
+/* .all-page body {
   margin: 0;
   height: 100vh;
   background-image: url('../img/fondo_gobierno.jpg');
@@ -22,6 +30,13 @@ body.all-page {
   background-repeat: no-repeat;
   background-attachment: fixed;
   display: flex;
+} */
+
+.main-content {
+  margin-left: 170px;
+  margin-top: 60px;
+  background-color: #ffffff;
+  min-height: calc(100vh - 60px);
 }
 
 .icon-upiicsa img{
@@ -32,63 +47,56 @@ body.all-page {
 }
 
 /* Estilos específicos para el formulario de registro */
-.container.register {
-  width: 800px;
-  height: 600px;
-  margin: auto;
-  gap: 20px;
-}
-
-.content-form.register {
-  width: 800px;
-  height: 600px;
-  background: rgba(9, 77, 31, 0.80);
-  border-radius: 25px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-  color: var(--white);
+.register-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 30px 30px;
+  width: 100%;
+  height: 100%;
+  background: rgba(9, 77, 31, 0.80);
+  color: var(--white);
   backdrop-filter: blur(2px);
 }
 
-.form-container {
-  width: 100%;
-  height: 100%;
+.form-container{
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 15px;
+  width: 400px;
+  height: 550px;
+  background: var(--green);
+  border-radius: 15px;
+  color: var(--white);
+  padding: 10px 30px;
+  backdrop-filter: blur(2px);
 }
 
-div.username, div.correo, div.password,
-div.genero, div.confirm-password {
+.form-container input{
+  height: 40px;
+  font-size: 15px;
+  margin: 5px 15px;
+  border-radius: 15px;
+  color: var(--white);
+}
+
+.name, .username-register, .correo, .password, .confirm-password {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 20px;
-  width: 100%;
-  padding: 10px;
-  border: none;
-  font-size: 16px;
+  flex-direction: column;
+  margin-bottom: 10px;
+  width: 90%;
+}
+
+.genero {
+  display: flex;
+  justify-content: space-evenly;
+  margin-bottom: 10px;
+  width: 85%;
 }
 
 label {
   font-size: 18px;
   font-weight: 600px;
-}
-
-input{
-  font-size: 18px;
-  margin: 5px 15px;
-  border-radius: 25px;
-}
-
-input[type="email"] {
-  width: 350px;
 }
 
 .submit{
@@ -104,50 +112,195 @@ input[type="email"] {
 }
 
 /* Estilos específicos para el login */
-.container.login {
-  width: 500px;
-  height: 550px;
-  margin: auto;
-}
-
-.content-form.login {
-  width: 400px;
-  height: 500px;
-  background: rgba(9, 77, 31, 0.80);
-  border-radius: 25px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-  color: var(--white);
+.login-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 30px 30px;
+  width: 100%;
+  height: 100%;
+  background: rgba(9, 77, 31, 0.80);
+  color: var(--white);
   backdrop-filter: blur(2px);
 }
 
-i.fa-regular.fa-circle-user {
-  font-size: 80px;
-  color: var(--white);
-}
-
-div.username.login, div.password.login {
+.form-container {
+  display: flex;
   justify-content: center;
-  gap: 1px;
+  align-items: center;
+  width: 400px;
+  height: 550px;
+  background: var(--green);
+  border-radius: 15px;
+  color: var(--white);
+  padding: 10px 30px;
+  backdrop-filter: blur(2px);
 }
 
-.submit.login {
+.form-container img {
+  width: 100px;
+}
+
+div.username-login, div.password-login, div.logo-login {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+}
+
+.submit-acept {
   width: 120px;
   height: 40px;
   border-radius: 25px;
+  background-color: var(--button);
+  color: var(--white);
   margin-top: 10px;
 }
 
 /* Apartado para el navbar */
 
+/* ==== NAVBAR GENERAL ==== */
+.navbar {
+  background-color: var(--green); 
+  color: #fff;
+  padding: 0px 20px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 60px;
+  z-index: 1000;
+}
 
+/* CONTENEDOR PRINCIPAL */
+.container-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ==== LOGO ==== */
+.navbar-logo img {
+  height: 50px;
+  width: auto;
+  transition: transform 0.3s;
+}
+
+.navbar-logo img:hover {
+  transform: scale(1.05);
+}
+
+/* SECCIÓN DERECHA */
+i{
+  font-size: 25px;
+  color: var(--white);
+  cursor: pointer;
+  transition: color 0.3s, transform 0.2s;
+}
+
+.navbar i:hover {
+  color: #00bcd4; /* azul cian */
+  transform: scale(1.1);
+}
+
+/* ==== MENÚ DE USUARIO ==== */
+.menu-user {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.menu {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  background-color: #1f683a;
+  border-radius: 8px;
+  list-style: none;
+  padding: 10px 0;
+  margin: 0;
+  width: 180px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.menu li {
+  text-align: left;
+}
+
+.menu a,
+.menu button {
+  display: block;
+  width: 100%;
+  padding: 10px 20px;
+  text-decoration: none;
+  color: #fff;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.menu a:hover,
+.menu button:hover {
+  background-color: #ade23b;
+  color: #000000;
+}
 
 /* Apartado para el slidebar */
+.sidebar {
+  position: fixed;       
+  top: 60px;
+  left: 0;
+  width: 170px;          
+  height: 100vh;         
+  background-color: var(--green);
+  color: var(--white);
+  padding: 20px;
+  overflow-y: auto;      /* scroll interno si el contenido es largo */
+}
 
+.slidebar-menu {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  top: 60px;
+  right: 0;
+  background-color: var(--green);
+  border-radius: 8px;
+  list-style: none;
+  padding: 0;
+  width: 100%;
+}
 
+.slidebar-menu li {
+  text-align: left;
+  box-shadow: 0 2px 1px rgba(0, 0, 0, 0.3);
+}
+
+.slidebar-menu a,
+.slidebar-menu button {
+  display: block;
+  width: 100%;
+  padding: 10px 10px;
+  text-decoration: none;
+  color: #fff;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.slidebar-menu a:hover,
+.slidebar-menu button:hover {
+  background-color: var(--yellow);
+  color: #000;
+}
 
 a {
   color: var(--yellow);

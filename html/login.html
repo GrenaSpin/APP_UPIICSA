@@ -7,27 +7,25 @@
     <link rel="stylesheet" href="../css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="all-page">
-    <content class="icon-upiicsa">
-        <a href="/html/home.html" class="navbar-logo"><img src="../img/icon-upiicsa.png" alt="UPIICSA Logo"></a>
-    </content>
-    <content class="container login">
-        <content class="content-form login">            
-            <form class="form-container" method="post">      
-                <i class="fa-regular fa-circle-user"></i>
-            <div class="username login">    
+<body>
+    <div class="login-container">           
+        <form class="form-container" method="post">      
+            <div class="logo-login">
+                <img src="../img/upiicsa.png" alt="Logo UPIICSA">
+                <label for="signin">Iniciar Sesión</label>
+            </div>
+            <div class="username-login">    
                 <input type="text" id="username" name="username" required>
                 <label for="username">Nombre de usuario</label>
             </div>
-            <div class="password login">
+            <div class="password-login">
                 <input type="password" id="password" name="password" required>
                 <label for="password">Contraseña</label>
             </div>
-            <input class="submit login" type="submit" value="Iniciar Sesión">
+            <input class="submit-acept" type="submit" value="Iniciar Sesión">
             <a href="#" class="">Olvide mi contraseña</a>
             <a href="/html/register.html">¿No tienes una cuenta? Regístrate</a>
-            </form>
-        </content>
-    </content>
+        </form>
+    </div>
 </body>
 </html>
