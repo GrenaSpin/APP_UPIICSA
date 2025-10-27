@@ -2,11 +2,14 @@
 /* Estilos para el formulario de registro UPIICSA */
 
 :root {
-  --green: #004433;
-  --accent: #54c0e8;
+  --black: #000000;
   --white: #ffffff;
   --yellow: #FFFC46;
+  --green: #004433;
+  --red: #e63946;
+  --accent: #54c0e8;
   --button: #007D3C;
+  --background: #ececec;
 }
 
 * {
@@ -18,7 +21,7 @@
 body {
   display: flex;
   height: 100vh;
-  background-color: #ececec;
+  background-color: var(--background);
   background-position: center;
 }
 
@@ -33,10 +36,11 @@ body {
 } */
 
 .main-content {
+  width: 100%;
+  min-height: calc(100vh - 60px);
   margin-left: 170px;
   margin-top: 60px;
-  background-color: #ffffff;
-  min-height: calc(100vh - 60px);
+  background-color: var(--background);
 }
 
 .icon-upiicsa img{
@@ -146,6 +150,7 @@ div.username-login, div.password-login, div.logo-login {
   justify-content: center;
   align-items: center;
   gap: 3px;
+  margin-bottom: 40px;
 }
 
 .submit-acept {
@@ -204,7 +209,7 @@ i{
 }
 
 /* ==== MENÚ DE USUARIO ==== */
-.menu-user {
+.menu-icon-right {
   position: relative;
   display: flex;
   justify-content: center;
@@ -212,7 +217,7 @@ i{
   gap: 10px;
 }
 
-.menu {
+.menu-user {
   position: absolute;
   top: 40px;
   right: 0;
@@ -220,17 +225,17 @@ i{
   border-radius: 8px;
   list-style: none;
   padding: 10px 0;
-  margin: 0;
+  margin: 10px 10px;
   width: 180px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.menu li {
+.menu-user li {
   text-align: left;
 }
 
-.menu a,
-.menu button {
+.menu-user a,
+.menu-user button {
   display: block;
   width: 100%;
   padding: 10px 20px;
@@ -244,9 +249,9 @@ i{
   transition: background 0.3s;
 }
 
-.menu a:hover,
-.menu button:hover {
-  background-color: #ade23b;
+.menu-user a:hover,
+.menu-user button:hover {
+  background-color: var(--yellow);
   color: #000000;
 }
 
@@ -255,15 +260,15 @@ i{
   position: fixed;       
   top: 60px;
   left: 0;
-  width: 170px;          
-  height: 100vh;         
+  width: 170px;
+  height: 100vh;           
   background-color: var(--green);
   color: var(--white);
-  padding: 20px;
+  padding: 0 20px;
   overflow-y: auto;      /* scroll interno si el contenido es largo */
 }
 
-.slidebar-menu {
+.sidebar-menu {
   display: flex;
   flex-direction: column;
   position: absolute;
@@ -276,13 +281,13 @@ i{
   width: 100%;
 }
 
-.slidebar-menu li {
+.sidebar-menu li {
   text-align: left;
   box-shadow: 0 2px 1px rgba(0, 0, 0, 0.3);
 }
 
-.slidebar-menu a,
-.slidebar-menu button {
+.sidebar-menu a,
+.sidebar-menu button {
   display: block;
   width: 100%;
   padding: 10px 10px;
@@ -296,8 +301,8 @@ i{
   transition: background 0.3s;
 }
 
-.slidebar-menu a:hover,
-.slidebar-menu button:hover {
+.sidebar-menu a:hover,
+.sidebar-menu button:hover {
   background-color: var(--yellow);
   color: #000;
 }
@@ -305,3 +310,97 @@ i{
 a {
   color: var(--yellow);
 }
+
+/* Apartado para presentaciones */
+.presentation-container-material-clase {
+  width: 100%;
+  height: 100%;
+}
+
+.content-title-presentation {
+  text-align: justify;
+  margin: 20px;
+}
+
+.button-add-presentation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--button);
+  color: var(--white);
+  width: 230px;
+  height: 35px;
+  border-radius: 15px;
+  margin: 20px;
+}
+
+.button-add-presentation button {
+  background: none;
+  border: none;
+  color: var(--white);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+
+.card-material {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--white);
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.card-material h2{
+  margin: 10px 0;
+}
+
+.card-material p {
+  flex-grow: 1;
+  margin-bottom: 10px;
+}
+
+.card-material-buttons {
+  display: flex;
+  justify-content: space-between;
+  height: 30px;
+  margin-top: 10px;
+}
+
+.button-presentar {
+  width: 60%;
+  background-color: var(--accent);
+  color: var(--white);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.button-editar {
+  border: none;
+  border-radius: 5px;
+}
+
+.button-eliminar {
+  border: none;
+  border-radius: 5px;
+  margin-right: 10px;
+}
+
+.card-material-buttons i{
+  width: 90%;
+  color: var(--black);
+  font-size: 16px;
+  cursor: pointer;
+  transition: color 0.3s, transform 0.2s;
+}
+

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPIICSA - Inicio</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container-navbar">
+            <div class="navbar-left">    
+                <a href="/html/index.html" class="navbar-logo"><img src="../img/upiicsa.png" alt="logo-upiicsa"></a>
+            </div>
+            <div class="navbar-right">
+                <div class="navbar-icons-right">
+                    <i class="fa-solid fa-bell"></i>
+                    <i class="fa-regular fa-circle-user navbar-icon"></i>
+                    <ul class="menu-user" visible="true">
+                        <li><a href="/html/dashboard.html">Dashboard</a></li>
+                        <li><button type="button" onclick="alert('Salir')">Salir</button></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <sidebar class="sidebar">
+        <i class="fa-solid fa-bars"></i>
+        <ul class="sidebar-menu">
+            <li><a href="/html/index.html">Material de clase</a></li>
+            <li><a href="/html/profile.html">Materias</a></li>
+            <li><a href="/html/settings.html">Diseño</a></li>
+        </ul>
+    </sidebar>
+    <main class="main-content">
+        <div class="presentation-container-material-clase">
+            <div class="content-title-presentation">
+                <h1>Material de Clase</h1>
+                <p>Encuentra aquí todo el material necesario para tus clases en UPIICSA.</p>
+            </div>
+            <div class="button-add-presentation">
+                <button type="button">+ Agregar nueva presentacion</button>
+            </div>
+            <div class="cards-container">
+                <div class="card-material">
+                    <h2>Programación</h2>
+                    <p>Recursos y apuntes para tus clases de programación.</p>
+                    <p>Actualizado: 10/09/2025</p>
+                    <div class="card-material-buttons">
+                        <button class="button-presentar" type="button">Presentar</button>
+                        <button class="button-editar" type="button"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button class="button-eliminar" type="button"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="card-material">
+                    <h2>Simuladores virtuales</h2>
+                    <p>Guías y ejemplos para mejorar tus habilidades de simuladores virtuales.</p>
+                    <p>Actualizado: 10/09/2025</p>
+                    <div class="card-material-buttons">
+                        <button class="button-presentar" type="button">Presentar</button>
+                        <button class="button-editar" type="button"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button class="button-eliminar" type="button"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="card-material">
+                    <h2>Electrónica</h2>
+                    <p>Documentos y proyectos relacionados con electrónica.</p>
+                    <p>Actualizado: 10/09/2025</p>
+                    <div class="card-material-buttons">
+                        <button class="button-presentar" type="button">Presentar</button>
+                        <button class="button-editar" type="button"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button class="button-eliminar" type="button"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
