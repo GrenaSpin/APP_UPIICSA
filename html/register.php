@@ -12,9 +12,7 @@
         <form method="post" class="form-container">      
             <label for="registro">REGISTRO</label>
             <div class="name">
-                <input placeholder="Primer Nombre" type="text" id="primer_nombre" name="primer_nombre" required>
-                <input placeholder="Apellido Paterno" type="text" id="apellido_paterno" name="apellido_paterno" required>
-                <input placeholder="Apellido Materno" type="text" id="apellido_materno" name="apellido_materno" required>
+                <input placeholder="Nombre completo" type="text" id="nombre_completo" name="nombre_completo" required>
             </div>
             <div class="username-register">
                 <input placeholder="No.Boleta" type="text" id="username" name="username" required>
@@ -36,8 +34,10 @@
                 <input placeholder="Confirmar Contraseña" type="password" id="confirm_password" name="confirm_password" required>
             </div>
             <div class="buttons-register">
-                <button class="submit-acept" type="submit" value="Guardar">Guardar</button>
-                <button class="submit cancel" type="submit" formaction="/html/login.html">Regresar</button>
+                <input class="submit-acept" type="submit" value="Guardar">
+            </div>
+            <div class="regresar-login">
+                <p>Ya tienes una cuenta?</p><a href="login.php" class="link-login">Iniciar sesión</a>
             </div>
         </form>
     </content>

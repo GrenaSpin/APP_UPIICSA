@@ -1,3 +1,26 @@
+<?php
+// Inicia la sesión PHP
+session_start();
+
+if (isset($_POST['username']) && isset($_POST['password'])) {
+     $username = $_POST['username'];
+     $password = $_POST['password'];
+
+    // Ejemplo: si las credenciales son correctas
+    if ($username === 'usuario' && $password === 'contrasena') {
+        // Establece la variable de sesión para el usuario
+        $_SESSION['loggedin'] = true;
+        $_SESSION['username'] = $username;
+
+        // Redirige al usuario a la página principal (index.php)
+        header('Location: index.php');
+        exit; // Es importante usar exit() después de una redirección
+    } else {
+        $error = "Usuario o contraseña incorrectos.";
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -23,8 +46,8 @@
                 <label for="password">Contraseña</label>
             </div>
             <button class="submit-acept" type="submit">Iniciar Sesión</button>
-            <a href="#" class="">Olvide mi contraseña</a>
-            <a href="/html/register.html">¿No tienes una cuenta? Regístrate</a>
+            <a href="#" class="link-forgot-password">Olvide mi contraseña</a>
+            <a href="register.php" class="link-register">¿No tienes una cuenta? Regístrate</a>
         </form>
     </div>
 </body>

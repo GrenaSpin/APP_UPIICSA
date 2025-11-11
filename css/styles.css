@@ -5,11 +5,12 @@
   --black: #000000;
   --white: #ffffff;
   --yellow: #FFFC46;
-  --green: #004433;
+  --green: #1B5E20; ;
   --red: #e63946;
   --accent: #54c0e8;
   --button: #007D3C;
   --background: #ececec;
+  --background-form: rgba(9, 77, 31, 0.80);
 }
 
 * {
@@ -28,7 +29,7 @@ body {
 /* .all-page body {
   margin: 0;
   height: 100vh;
-  background-image: url('../img/fondo_gobierno.jpg');
+  background-image: url('../img/fondo-gobierno.png');
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
@@ -43,6 +44,10 @@ body {
   background-color: var(--background);
 }
 
+.main-content.expanded {
+  margin-left: 0;
+}
+
 .icon-upiicsa img{
   width: 100px;
   height: auto;
@@ -51,15 +56,18 @@ body {
 }
 
 /* Estilos específicos para el formulario de registro */
-.register-container {
+.register-container{
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+  margin: 0;
   width: 100%;
-  height: 100%;
-  background: rgba(9, 77, 31, 0.80);
-  color: var(--white);
-  backdrop-filter: blur(2px);
+  background-image: url('../img/fondo-gobierno.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .form-container{
@@ -69,7 +77,7 @@ body {
   align-items: center;
   width: 400px;
   height: 550px;
-  background: var(--green);
+  background: var(--background-form);
   border-radius: 15px;
   color: var(--white);
   padding: 10px 30px;
@@ -81,7 +89,6 @@ body {
   font-size: 15px;
   margin: 5px 15px;
   border-radius: 15px;
-  color: var(--white);
 }
 
 .name, .username-register, .correo, .password, .confirm-password {
@@ -115,29 +122,22 @@ label {
   border-radius: 25px;
 }
 
+.link-login {
+  color: var(--yellow);
+}
+
 /* Estilos específicos para el login */
 .login-container {
   display: flex;
   justify-content: center;
   align-items: center;
+  margin: 0;
   width: 100%;
-  height: 100%;
-  background: rgba(9, 77, 31, 0.80);
-  color: var(--white);
-  backdrop-filter: blur(2px);
-}
-
-.form-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 400px;
-  height: 550px;
-  background: var(--green);
-  border-radius: 15px;
-  color: var(--white);
-  padding: 10px 30px;
-  backdrop-filter: blur(2px);
+  background-image: url('../img/fondo-gobierno.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .form-container img {
@@ -162,6 +162,10 @@ div.username-login, div.password-login, div.logo-login {
   margin-top: 10px;
 }
 
+.link-forgot-password, .link-register {
+  color: var(--yellow);
+}
+
 /* Apartado para el navbar */
 
 /* ==== NAVBAR GENERAL ==== */
@@ -184,6 +188,19 @@ div.username-login, div.password-login, div.logo-login {
   align-items: center;
 }
 
+/* SECCIÓN IZQUIERDA */
+.navbar-left {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100px;
+}
+
+.toggle-sidebar-btn{
+  background-color: var(--green);
+  border: none;
+}
+
 /* ==== LOGO ==== */
 .navbar-logo img {
   height: 50px;
@@ -196,6 +213,14 @@ div.username-login, div.password-login, div.logo-login {
 }
 
 /* SECCIÓN DERECHA */
+
+.navbar-icons-right {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 70px;
+}
+
 i{
   font-size: 25px;
   color: var(--white);
@@ -257,24 +282,26 @@ i{
 
 /* Apartado para el slidebar */
 .sidebar {
-  position: fixed;       
+  position: fixed;
   top: 60px;
   left: 0;
   width: 170px;
   height: 100vh;           
-  background-color: var(--green);
-  color: var(--white);
-  padding: 0 20px;
-  overflow-y: auto;      /* scroll interno si el contenido es largo */
+  background-color: var(--green); 
+  color: #FFFFFF;           
+  overflow-y: auto;      
+  transition: transform 0.3s ease, margin-left 0.3s ease;
+}
+
+.sidebar.hidden {
+  transform: translateX(-210px);
 }
 
 .sidebar-menu {
   display: flex;
   flex-direction: column;
   position: absolute;
-  top: 60px;
   right: 0;
-  background-color: var(--green);
   border-radius: 8px;
   list-style: none;
   padding: 0;
@@ -293,7 +320,6 @@ i{
   padding: 10px 10px;
   text-decoration: none;
   color: #fff;
-  background: none;
   border: none;
   text-align: left;
   font-size: 15px;
@@ -307,8 +333,9 @@ i{
   color: #000;
 }
 
-a {
-  color: var(--yellow);
+.sidebar-menu a.enlace-activo {
+  background-color: var(--yellow);
+  color: #000;
 }
 
 /* Apartado para presentaciones */
@@ -347,6 +374,7 @@ a {
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 20px;
   padding: 20px;
+  height: 250px;
 }
 
 .card-material {
@@ -367,6 +395,17 @@ a {
 .card-material p {
   flex-grow: 1;
   margin-bottom: 10px;
+}
+
+.description-card {
+  display: flex;
+  align-items: start;
+  font-size: 13px;
+}
+
+.updated-date {
+  display: flex;
+  align-items: end;
 }
 
 .card-material-buttons {

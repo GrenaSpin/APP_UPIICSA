@@ -1,3 +1,15 @@
+<?php
+// Inicia la sesión PHP
+session_start();
+
+// Verifica si el usuario ha iniciado sesión
+if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+    // Si no ha iniciado sesión, redirige a login.php
+    header('Location: login.php');
+    exit; // Detiene la ejecución del script
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,32 +20,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container-navbar">
-            <div class="navbar-left">    
-                <a href="/html/index.html" class="navbar-logo"><img src="../img/upiicsa.png" alt="logo-upiicsa"></a>
-            </div>
-            <div class="navbar-right">
-                <div class="navbar-icons-right">
-                    <i class="fa-solid fa-bell"></i>
-                    <i class="fa-regular fa-circle-user navbar-icon"></i>
-                    <ul class="menu-user" visible="true">
-                        <li><a href="/html/dashboard.html">Dashboard</a></li>
-                        <li><button type="button" onclick="alert('Salir')">Salir</button></li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </nav>
-    <sidebar class="sidebar">
-        <i class="fa-solid fa-bars"></i>
-        <ul class="sidebar-menu">
-            <li><a href="/html/index.html">Material de clase</a></li>
-            <li><a href="/html/profile.html">Materias</a></li>
-            <li><a href="/html/settings.html">Diseño</a></li>
-        </ul>
-    </sidebar>
-    <main class="main-content">
+    <?php include ("../includes/navbar.php"); ?>
+    <?php include ("../includes/sidebar.php"); ?>
+    <main class="main-content" id="mainContent">
         <div class="presentation-container-material-clase">
             <div class="content-title-presentation">
                 <h1>Material de Clase</h1>
@@ -44,9 +33,9 @@
             </div>
             <div class="cards-container">
                 <div class="card-material">
-                    <h2>Programación</h2>
-                    <p>Recursos y apuntes para tus clases de programación.</p>
-                    <p>Actualizado: 10/09/2025</p>
+                    <h2 class="title-card">Programación</h2>
+                    <p class="description-card">Recursos y apuntes para tus clases de programación.</p>
+                    <p class="updated-date">Actualizado: 10/09/2025</p>
                     <div class="card-material-buttons">
                         <button class="button-presentar" type="button">Presentar</button>
                         <button class="button-editar" type="button"><i class="fa-solid fa-pen-to-square"></i></button>
@@ -54,9 +43,9 @@
                     </div>
                 </div>
                 <div class="card-material">
-                    <h2>Simuladores virtuales</h2>
-                    <p>Guías y ejemplos para mejorar tus habilidades de simuladores virtuales.</p>
-                    <p>Actualizado: 10/09/2025</p>
+                    <h2 class="title-card">Simuladores virtuales</h2>
+                    <p class="description-card">Guías y ejemplos para mejorar tus habilidades de simuladores virtuales.</p>
+                    <p class="updated-date">Actualizado: 10/09/2025</p>
                     <div class="card-material-buttons">
                         <button class="button-presentar" type="button">Presentar</button>
                         <button class="button-editar" type="button"><i class="fa-solid fa-pen-to-square"></i></button>
@@ -64,9 +53,9 @@
                     </div>
                 </div>
                 <div class="card-material">
-                    <h2>Electrónica</h2>
-                    <p>Documentos y proyectos relacionados con electrónica.</p>
-                    <p>Actualizado: 10/09/2025</p>
+                    <h2 class="title-card">Electrónica</h2>
+                    <p class="description-card">Documentos y proyectos relacionados con electrónica.</p>
+                    <p class="updated-date">Actualizado: 10/09/2025</p>
                     <div class="card-material-buttons">
                         <button class="button-presentar" type="button">Presentar</button>
                         <button class="button-editar" type="button"><i class="fa-solid fa-pen-to-square"></i></button>
@@ -76,5 +65,8 @@
             </div>
         </div>
     </main>
+
+
+    <script src="../js/sidebar.js"></script>
 </body>
 </html>
