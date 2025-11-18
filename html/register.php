@@ -37,7 +37,7 @@
                 <input class="submit-acept" type="submit" value="Guardar">
             </div>
             <div class="regresar-login">
-                <p>Ya tienes una cuenta?</p><a href="login.php" class="link-login">Iniciar sesión</a>
+                <p>Ya tienes una cuenta? </p><a href="login.php" class="link-login">Iniciar sesión</a>
             </div>
         </form>
     </content>

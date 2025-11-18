@@ -126,6 +126,14 @@ label {
   color: var(--yellow);
 }
 
+.regresar-login {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  margin-top: 15px;
+}
+
 /* Estilos específicos para el login */
 .login-container {
   display: flex;

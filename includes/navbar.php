@@ -10,7 +10,7 @@
                 <i class="fa-regular fa-circle-user navbar-icon"></i>
                 <ul class="menu-user" visible="true">
                     <li><a href="dashboard.php">Dashboard</a></li>
-                    <li><a href="logout.php" type="button" onclick="alert('Salir')">Salir</a></li>
+                    <li><a href="../componentes/logout.php" type="button" onclick="alert('Salir')">Salir</a></li>
                 </ul>
             </div>
         </div>
