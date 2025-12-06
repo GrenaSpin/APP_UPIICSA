@@ -1,6 +1,6 @@
 <?php
-$id = $_GET["id"];
-$data = json_decode(file_get_contents("presentaciones/$id"), true);
+    $id = $_GET["id"];
+    $data = json_decode(file_get_contents("presentaciones/$id"), true);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -9,7 +9,7 @@ $data = json_decode(file_get_contents("presentaciones/$id"), true);
 <title><?= $data["titulo"] ?></title>
 
 <style>
-    body { background: #111; color: #fff; font-family: Arial; text-align: center; padding: 40px; }
+    body { background: #111; color: #fff; font-family: Arial; text-align: center; padding: 40px; align-items: center;}
     .slide { display: none; }
     .active { display: block; }
     h2 { font-size: 40px; }

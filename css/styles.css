@@ -382,7 +382,6 @@ i{
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 20px;
   padding: 20px;
-  height: 250px;
 }
 
 .card-material {

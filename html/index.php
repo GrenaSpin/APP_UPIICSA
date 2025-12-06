@@ -12,7 +12,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 
 <?php
 // Cargar presentaciones
-$presentaciones = glob("presentaciones/*.json");
+    $presentaciones = glob("presentaciones/*.json");
 ?>
 
 <!DOCTYPE html>
