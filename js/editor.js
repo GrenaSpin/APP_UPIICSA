@@ -16,6 +16,18 @@ document.addEventListener('DOMContentLoaded', function() {
     inicializarEditor();
 });
 
+// -----------------------
+// Helpers de formateo
+// -----------------------
+function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 /* =======================
    INICIALIZAR EDITOR
    ======================= */
@@ -41,7 +53,9 @@ function agregarDiapositiva() {
         contenido: "Escribe aquí tu contenido...",
         color: "#3b82f6",
         size: "28px",
-        alineacion: "center"
+        alineacion: "center",
+        // Textareas arrastrables de este slide
+        textos: []
     };
     
     slides.push(nuevoSlide);
@@ -160,6 +174,9 @@ function seleccionar(i) {
     });
     
     cargarListaSlides();
+
+    // Renderizar textos arrastrables del slide seleccionado
+    renderSlideTexts();
 }
 
 /* =======================
@@ -190,80 +207,61 @@ function actualizarVistaPrevia() {
 /* =======================
    PROCESAR CONTENIDO CON FORMATO
    ======================= */
+
 function procesarContenido(texto) {
-    if (!texto) return "";
-    
-    // Convertir saltos de línea en <br>
-    let html = texto.replace(/\n/g, '<br>');
-    
-    // Convertir viñetas (*) en listas
-    const bulletLines = html.split('<br>').map(line => {
-        if (line.trim().startsWith('* ')) {
-            return `<li>${line.trim().substring(2)}</li>`;
+    // Soporte básico para lo que ya usas en la toolbar:
+    // **negrita**, _itálica_, listas con "* " y numeradas "1. ".
+    const raw = String(texto ?? '');
+
+    // Escapar HTML primero
+    const safe = escapeHtml(raw);
+
+    // Transformaciones inline
+    let html = safe
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/_(.+?)_/g, '<em>$1</em>');
+
+    // Procesar líneas para listas
+    const lines = html.split(/\r?\n/);
+    let out = '';
+    let inUl = false;
+    let inOl = false;
+
+    const closeLists = () => {
+        if (inUl) { out += '</ul>'; inUl = false; }
+        if (inOl) { out += '</ol>'; inOl = false; }
+    };
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+
+        // Viñetas
+        if (/^\*\s+/.test(trimmed)) {
+            if (inOl) { out += '</ol>'; inOl = false; }
+            if (!inUl) { out += '<ul>'; inUl = true; }
+            out += `<li>${trimmed.replace(/^\*\s+/, '')}</li>`;
+            continue;
         }
-        return line;
-    });
-    
-    // Agrupar líneas consecutivas con viñetas en una lista
-    let inList = false;
-    let processedLines = [];
-    
-    bulletLines.forEach(line => {
-        if (line.startsWith('<li>')) {
-            if (!inList) {
-                processedLines.push('<ul>');
-                inList = true;
-            }
-            processedLines.push(line);
+
+        // Numeración
+        if (/^\d+\.\s+/.test(trimmed)) {
+            if (inUl) { out += '</ul>'; inUl = false; }
+            if (!inOl) { out += '<ol>'; inOl = true; }
+            out += `<li>${trimmed.replace(/^\d+\.\s+/, '')}</li>`;
+            continue;
+        }
+
+        // Línea normal
+        closeLists();
+        if (trimmed.length === 0) {
+            out += '<br>';
         } else {
-            if (inList) {
-                processedLines.push('</ul>');
-                inList = false;
-            }
-            processedLines.push(line);
+            out += `<p>${line}</p>`;
         }
-    });
-    
-    if (inList) {
-        processedLines.push('</ul>');
     }
-    
-    html = processedLines.join('');
-    
-    // Procesar listas numeradas (similar a las viñetas)
-    const numberLines = html.split('<br>').map(line => {
-        const numberMatch = line.trim().match(/^(\d+)\.\s+(.*)$/);
-        if (numberMatch) {
-            return `<li>${numberMatch[2]}</li>`;
-        }
-        return line;
-    });
-    
-    // Agrupar líneas numeradas consecutivas
-    inList = false;
-    processedLines = [];
-    
-    numberLines.forEach(line => {
-        if (line.startsWith('<li>')) {
-            if (!inList) {
-                processedLines.push('<ol>');
-                inList = true;
-            }
-            processedLines.push(line);
-        } else {
-            if (inList) {
-                processedLines.push('</ol>');
-                inList = false;
-            }
-            processedLines.push(line);
-        }
-    });
-    
-    if (inList) {
-        processedLines.push('</ol>');
-    }
-    
-    return processedLines.join('');
+    closeLists();
+
+    return out;
 }
 
 /* =======================
@@ -669,15 +667,6 @@ function addTextToCurrentSlide() {
     marcarCambios();
 }
 
-// Al cambiar de slide, debemos renderizar sus textos
-// Llamar desde seleccionar() al final (si no lo hace ya)
-const originalSeleccionar = seleccionar;
-seleccionar = function(i) {
-    originalSeleccionar(i);
-    // renderizar textos del slide seleccionado
-    renderSlideTexts();
-};
-
 // Conectar botón de "Texto" (si existe)
 if (addTextBtn) {
     addTextBtn.addEventListener('click', (e) => {
@@ -709,15 +698,6 @@ guardarJSON = function() {
     syncVisibleTextsToModel();
     originalGuardarJSON();
 };
-
-// Al inicio, renderizar textos del slide inicial (si existe)
-document.addEventListener('DOMContentLoaded', () => {
-    // Small delay para asegurar que todo el DOM y slides estén listos
-    setTimeout(() => {
-        if (actual >= 0) renderSlideTexts();
-    }, 10);
-});
-
 
 // Hacer funciones disponibles globalmente
 window.agregarDiapositiva = agregarDiapositiva;

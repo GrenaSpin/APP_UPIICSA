@@ -89,11 +89,14 @@ if ($id && file_exists("presentaciones/$id")) {
             </div>
             
             <div class="preview-box">
+                <!--
+                  IMPORTANTE:
+                  - No bloquees eventos del preview (pointer-events:none), porque el drag & drop depende de mousedown/mousemove.
+                  - Creamos estructura interna para que editor.js pueda actualizar título/contenido.
+                -->
                 <div id="preview" class="slide-preview">
-                    <h1 id="preview-title">Título del Slide</h1>
-                    <div id="preview-content" class="slide-content">
-                        <p>Contenido del slide...</p>
-                    </div>
+                    <h1 id="preview-title"></h1>
+                    <div id="preview-content"></div>
                 </div>
             </div>
             
@@ -112,7 +115,7 @@ if ($id && file_exists("presentaciones/$id")) {
             </div>
 
             <div class="options-section">
-                <h4>Contenido</h4>
+                <!--<h4>Contenido</h4>
 
                 <label>Título del Slide</label>
                 <input type="text" id="slide-title" class="input" placeholder="Título del slide" oninput="actualizarSlide()">
@@ -124,16 +127,13 @@ if ($id && file_exists("presentaciones/$id")) {
                     <button type="button" class="tool-btn" onclick="formatearTexto('bullet')" title="Viñeta">•</button>
                     <button type="button" class="tool-btn" onclick="formatearTexto('number')" title="Numeración">1.</button>
                 </div>
-                <textarea id="slide-content" placeholder="Escribe el contenido de tu slide aquí..." oninput="actualizarSlide()"></textarea>
+                <textarea id="slide-content" placeholder="Escribe el contenido de tu slide aquí..." oninput="actualizarSlide()"></textarea>-->
                 
                 <div class="menu-item" id="add-text-btn">
                     <span class="icon">T</span>
                     <span class="text">Texto</span>
                 </div>
 
-                <div class="content-hint">
-                    <small>💡 Usa * para viñetas y números para listas numeradas</small>
-                </div>
             </div>
 
             <div class="options-section">
@@ -207,8 +207,9 @@ if ($id && file_exists("presentaciones/$id")) {
 </div>
 
 <!-- ========== LÓGICA DEL EDITOR MEJORADA ========== -->
+<!-- Datos iniciales (diapositivas) para editor.js -->
+<script id="initial-data" type="application/json"><?= json_encode($data["diapositivas"], JSON_UNESCAPED_UNICODE) ?></script>
 <script src="../js/editor.js"></script>
-<script src="../js/editorbtn.js"></script>
 
 </body>
 </html>
