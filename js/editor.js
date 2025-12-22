@@ -5,8 +5,17 @@ let zoomLevel = 1;
 let autoSaveTimer = null;
 let currentModalSlide = 0;
 
+// Selección de textos (para borde y acciones)
+let selectedTextRef = null; // { slide: number, index: number }
+
 // Inicialización cuando el DOM está listo
 document.addEventListener('DOMContentLoaded', function() {
+    const previewEl = document.getElementById('preview');
+    if (previewEl) {
+        previewEl.style.position = 'relative';
+        previewEl.style.transformOrigin = 'top left';
+    }
+
     // Obtener datos iniciales desde el HTML
     const initialDataElement = document.getElementById('initial-data');
     if (initialDataElement) {
@@ -15,18 +24,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     inicializarEditor();
 });
-
-// -----------------------
-// Helpers de formateo
-// -----------------------
-function escapeHtml(str) {
-    return String(str ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
 
 /* =======================
    INICIALIZAR EDITOR
@@ -53,9 +50,7 @@ function agregarDiapositiva() {
         contenido: "Escribe aquí tu contenido...",
         color: "#3b82f6",
         size: "28px",
-        alineacion: "center",
-        // Textareas arrastrables de este slide
-        textos: []
+        alineacion: "center"
     };
     
     slides.push(nuevoSlide);
@@ -174,9 +169,6 @@ function seleccionar(i) {
     });
     
     cargarListaSlides();
-
-    // Renderizar textos arrastrables del slide seleccionado
-    renderSlideTexts();
 }
 
 /* =======================
@@ -208,61 +200,7 @@ function actualizarVistaPrevia() {
    PROCESAR CONTENIDO CON FORMATO
    ======================= */
 
-function procesarContenido(texto) {
-    // Soporte básico para lo que ya usas en la toolbar:
-    // **negrita**, _itálica_, listas con "* " y numeradas "1. ".
-    const raw = String(texto ?? '');
-
-    // Escapar HTML primero
-    const safe = escapeHtml(raw);
-
-    // Transformaciones inline
-    let html = safe
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/_(.+?)_/g, '<em>$1</em>');
-
-    // Procesar líneas para listas
-    const lines = html.split(/\r?\n/);
-    let out = '';
-    let inUl = false;
-    let inOl = false;
-
-    const closeLists = () => {
-        if (inUl) { out += '</ul>'; inUl = false; }
-        if (inOl) { out += '</ol>'; inOl = false; }
-    };
-
-    for (const line of lines) {
-        const trimmed = line.trim();
-
-        // Viñetas
-        if (/^\*\s+/.test(trimmed)) {
-            if (inOl) { out += '</ol>'; inOl = false; }
-            if (!inUl) { out += '<ul>'; inUl = true; }
-            out += `<li>${trimmed.replace(/^\*\s+/, '')}</li>`;
-            continue;
-        }
-
-        // Numeración
-        if (/^\d+\.\s+/.test(trimmed)) {
-            if (inUl) { out += '</ul>'; inUl = false; }
-            if (!inOl) { out += '<ol>'; inOl = true; }
-            out += `<li>${trimmed.replace(/^\d+\.\s+/, '')}</li>`;
-            continue;
-        }
-
-        // Línea normal
-        closeLists();
-        if (trimmed.length === 0) {
-            out += '<br>';
-        } else {
-            out += `<p>${line}</p>`;
-        }
-    }
-    closeLists();
-
-    return out;
-}
+   
 
 /* =======================
    ACTUALIZAR SLIDE
@@ -375,6 +313,7 @@ function cambiarZoom(delta) {
     if (!preview || !zoomLevelElement) return;
     
     zoomLevel = Math.max(0.5, Math.min(2, zoomLevel + delta));
+    preview.style.transformOrigin = "top left";
     preview.style.transform = `scale(${zoomLevel})`;
     zoomLevelElement.textContent = Math.round(zoomLevel * 100) + "%";
 }
@@ -516,6 +455,15 @@ if (initialDataElement) {
 const canvas = document.getElementById('preview');
 const addTextBtn = document.getElementById('add-text-btn');
 
+// Clic en el fondo: quitar selección
+if (canvas) {
+    canvas.addEventListener('mousedown', (e) => {
+        // Si el clic fue dentro de un cuadro de texto, no deseleccionar
+        if (e.target && e.target.closest && e.target.closest('.draggable-text')) return;
+        setSelectedText(null, null);
+    });
+}
+
 // Utilidades
 function ensureTextArray(slideIndex) {
     if (!slides[slideIndex]) return;
@@ -538,108 +486,213 @@ function renderSlideTexts() {
     slides[actual].textos.forEach((t, index) => {
         createDraggableTextElement(actual, index, t);
     });
+
+    // Reaplica borde de selección
+    refreshSelectionOutlines();
 }
 
 // Crea el elemento textarea arrastrable y lo enlaza con slides[slideIndex].textos[index]
+
+function setSelectedText(slideIndex, index) {
+    selectedTextRef = (slideIndex === null || index === null) ? null : { slide: slideIndex, index: index };
+    refreshSelectionOutlines();
+}
+
+function refreshSelectionOutlines() {
+    if (!canvas) return;
+    const all = canvas.querySelectorAll('.draggable-text');
+    all.forEach(w => {
+        const s = Number(w.dataset.slide);
+        const i = Number(w.dataset.index);
+        const isSel = selectedTextRef && selectedTextRef.slide === s && selectedTextRef.index === i;
+        w.style.outline = isSel ? '2px solid rgba(255,255,255,0.85)' : 'none';
+        w.style.boxShadow = isSel ? '0 0 0 2px rgba(0,0,0,0.25)' : 'none';
+    });
+}
+
 function createDraggableTextElement(slideIndex, index, textoObj) {
-    const el = document.createElement('textarea');
-    el.className = 'draggable-text';
-    el.value = textoObj.texto ?? '';
-    el.dataset.slide = slideIndex;
-    el.dataset.index = index;
+    // Contenedor (se mueve este, no el textarea directamente)
+    const wrapper = document.createElement('div');
+    wrapper.className = 'draggable-text';
+    wrapper.dataset.slide = slideIndex;
+    wrapper.dataset.index = index;
 
     // Estilos base si no vienen
-    const w = textoObj.width ?? 200;
-    const h = textoObj.height ?? 100;
+    const w = textoObj.width ?? 240;
+    const h = textoObj.height ?? 140;
     const top = (typeof textoObj.top !== 'undefined') ? textoObj.top : 50;
     const left = (typeof textoObj.left !== 'undefined') ? textoObj.left : 50;
 
-    el.style.position = 'absolute';
-    el.style.top = `${top}px`;
-    el.style.left = `${left}px`;
-    el.style.width = `${w}px`;
-    el.style.height = `${h}px`;
-    el.style.resize = 'both';
-    el.style.zIndex = 50;
-    el.style.cursor = 'move'; // para indicar que se puede mover
+    wrapper.style.position = 'absolute';
+    wrapper.style.top = `${top}px`;
+    wrapper.style.left = `${left}px`;
+    wrapper.style.width = `${w}px`;
+    wrapper.style.height = `${h}px`;
+    wrapper.style.zIndex = 50;
+    wrapper.style.boxSizing = 'border-box';
+    wrapper.style.border = '1px dashed rgba(255,255,255,0.65)';
+    wrapper.style.borderRadius = '8px';
+    wrapper.style.background = 'rgba(0,0,0,0.25)';
+    wrapper.style.backdropFilter = 'blur(2px)';
 
-    // Cuando el usuario escribe, actualizamos directamente el objeto
-    el.addEventListener('input', (ev) => {
-        const sIdx = Number(el.dataset.slide);
-        const iIdx = Number(el.dataset.index);
-        // proteger por si se eliminó
-        if (!slides[sIdx] || !slides[sIdx].textos || !slides[sIdx].textos[iIdx]) return;
-        slides[sIdx].textos[iIdx].texto = el.value;
-        // también guardar tamaño actual
-        slides[sIdx].textos[iIdx].width = el.clientWidth;
-        slides[sIdx].textos[iIdx].height = el.clientHeight;
+    // Barra/handle para mover
+    const handle = document.createElement('div');
+    handle.className = 'text-handle';
+    handle.textContent = '';
+    handle.style.display = 'flex';
+    handle.style.alignItems = 'center';
+    handle.style.justifyContent = 'space-between';
+
+    const handleLabel = document.createElement('span');
+    handleLabel.textContent = 'Texto';
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.textContent = '×';
+    delBtn.title = 'Eliminar';
+    delBtn.style.width = '22px';
+    delBtn.style.height = '22px';
+    delBtn.style.border = 'none';
+    delBtn.style.background = 'transparent';
+    delBtn.style.color = 'rgba(255,255,255,0.95)';
+    delBtn.style.cursor = 'pointer';
+    delBtn.style.fontSize = '16px';
+    delBtn.style.lineHeight = '22px';
+    delBtn.style.padding = '0';
+    delBtn.style.margin = '0';
+
+    handle.appendChild(handleLabel);
+    handle.appendChild(delBtn);
+
+    handle.style.height = '22px';
+    handle.style.lineHeight = '22px';
+    handle.style.padding = '0 8px';
+    handle.style.cursor = 'move';
+    handle.style.userSelect = 'none';
+    handle.style.fontSize = '12px';
+    handle.style.fontWeight = '600';
+    handle.style.color = 'rgba(255,255,255,0.9)';
+    handle.style.background = 'rgba(0,0,0,0.35)';
+    handle.style.borderBottom = '1px solid rgba(255,255,255,0.25)';
+    handle.style.borderTopLeftRadius = '8px';
+    handle.style.borderTopRightRadius = '8px';
+
+    // Textarea (aquí SÍ se escribe)
+    const ta = document.createElement('textarea');
+    ta.className = 'text-area';
+    ta.value = textoObj.texto ?? '';
+    ta.style.width = '100%';
+    ta.style.height = `calc(100% - 22px)`;
+    ta.style.boxSizing = 'border-box';
+    ta.style.padding = '10px';
+    ta.style.border = '0';
+    ta.style.outline = 'none';
+    ta.style.resize = 'both'; // permite redimensionar
+    ta.style.background = 'transparent';
+    ta.style.color = 'white';
+    ta.style.fontSize = '16px';
+
+    wrapper.appendChild(handle);
+    
+
+    // Seleccionar al hacer click en el cuadro (sin bloquear edición)
+    wrapper.addEventListener('mousedown', (ev) => {
+        if (ev.target === delBtn) return;
+        setSelectedText(slideIndex, index);
+    });
+
+    // Borrar el cuadro
+    delBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const sIdx = Number(wrapper.dataset.slide);
+        const iIdx = Number(wrapper.dataset.index);
+        if (!slides[sIdx] || !slides[sIdx].textos) return;
+
+        slides[sIdx].textos.splice(iIdx, 1);
+
+        // Si borraste el seleccionado, limpiar selección
+        if (selectedTextRef && selectedTextRef.slide === sIdx && selectedTextRef.index === iIdx) {
+            selectedTextRef = null;
+        }
+
+        // Re-render para recalcular índices
+        renderSlideTexts();
         marcarCambios();
     });
 
-    // Al terminar de redimensionar (pointerup), actualizar tamaño
-    el.addEventListener('mouseup', () => {
-        const sIdx = Number(el.dataset.slide);
-        const iIdx = Number(el.dataset.index);
+wrapper.appendChild(ta);
+    canvas.appendChild(wrapper);
+
+    // Guardar escritura en JSON
+    ta.addEventListener('input', () => {
+        const sIdx = Number(wrapper.dataset.slide);
+        const iIdx = Number(wrapper.dataset.index);
         if (!slides[sIdx] || !slides[sIdx].textos || !slides[sIdx].textos[iIdx]) return;
-        slides[sIdx].textos[iIdx].width = el.clientWidth;
-        slides[sIdx].textos[iIdx].height = el.clientHeight;
+        slides[sIdx].textos[iIdx].texto = ta.value;
+        marcarCambios();
     });
 
-    canvas.appendChild(el);
+    // Guardar tamaño al terminar resize (cuando sueltas el mouse)
+    wrapper.addEventListener('mouseup', () => {
+        const sIdx = Number(wrapper.dataset.slide);
+        const iIdx = Number(wrapper.dataset.index);
+        if (!slides[sIdx] || !slides[sIdx].textos || !slides[sIdx].textos[iIdx]) return;
+        slides[sIdx].textos[iIdx].width = wrapper.offsetWidth;
+        slides[sIdx].textos[iIdx].height = wrapper.offsetHeight;
+        marcarCambios();
+    });
 
-    // Hacer arrastrable
-    makeElementDraggable(el, slideIndex, index);
+    // Drag SOLO desde la barra (para que el textarea se pueda escribir normal)
+    makeElementDraggable(wrapper, handle, slideIndex, index);
 }
 
-// Lógica de arrastre
-function makeElementDraggable(elmnt, slideIndex, index) {
-    let pos3 = 0, pos4 = 0;
+// Lógica de arrastre (corrige zoom + coordenadas relativas al canvas)
+function makeElementDraggable(wrapper, handle, slideIndex, index) {
+    let startX = 0, startY = 0;
+    let startTop = 0, startLeft = 0;
 
-    const elementDrag = (e) => {
-        e = e || window.event;
-        // usar clientX/clientY (soporta mouse)
-        const clientX = e.clientX;
-        const clientY = e.clientY;
+    const onMove = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const dx = (e.clientX - startX) / (zoomLevel || 1);
+        const dy = (e.clientY - startY) / (zoomLevel || 1);
 
-        let newTop = elmnt.offsetTop + (clientY - pos4);
-        let newLeft = elmnt.offsetLeft + (clientX - pos3);
+        let newTop = startTop + dy;
+        let newLeft = startLeft + dx;
 
-        // actualizar referencias
-        pos3 = clientX;
-        pos4 = clientY;
+        // límites dentro del canvas (en coord no escaladas)
+        const maxTop = Math.max(0, (canvas.clientHeight - wrapper.offsetHeight));
+        const maxLeft = Math.max(0, (canvas.clientWidth - wrapper.offsetWidth));
 
-        // límites dentro del canvas
-        newTop = Math.max(0, Math.min(newTop, canvas.clientHeight - elmnt.offsetHeight));
-        newLeft = Math.max(0, Math.min(newLeft, canvas.clientWidth - elmnt.offsetWidth));
+        newTop = Math.max(0, Math.min(newTop, maxTop));
+        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
 
-        elmnt.style.top = newTop + "px";
-        elmnt.style.left = newLeft + "px";
+        wrapper.style.top = `${newTop}px`;
+        wrapper.style.left = `${newLeft}px`;
 
-        // Guardar en slides
+        // Guardar en modelo (posiciones no escaladas)
         if (slides[slideIndex] && slides[slideIndex].textos && slides[slideIndex].textos[index]) {
             slides[slideIndex].textos[index].top = newTop;
             slides[slideIndex].textos[index].left = newLeft;
         }
     };
 
-    const closeDragElement = () => {
-        document.removeEventListener('mousemove', elementDrag);
-        document.removeEventListener('mouseup', closeDragElement);
+    const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
         marcarCambios();
     };
 
-    const dragMouseDown = (e) => {
-        e = e || window.event;
-        // iniciar posiciones
-        pos3 = e.clientX;
-        pos4 = e.clientY;
-        document.addEventListener('mousemove', elementDrag);
-        document.addEventListener('mouseup', closeDragElement);
-        e.preventDefault();
-    };
+    handle.addEventListener('mousedown', (e) => {
+        // Solo mover si el click es en el handle
+        e.preventDefault(); // evita selección/arrastre raro
+        startX = e.clientX;
+        startY = e.clientY;
+        startTop = wrapper.offsetTop;
+        startLeft = wrapper.offsetLeft;
 
-    // Iniciar el arrastre desde cualquier punto del textarea
-    elmnt.addEventListener('mousedown', dragMouseDown);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
 }
 
 // Agregar nuevo texto al slide actual
@@ -664,8 +717,19 @@ function addTextToCurrentSlide() {
 
     // renderizar (añade el nuevo)
     createDraggableTextElement(actual, index, textoObj);
-    marcarCambios();
+    
+    setSelectedText(actual, index);
+marcarCambios();
 }
+
+// Al cambiar de slide, debemos renderizar sus textos
+// Llamar desde seleccionar() al final (si no lo hace ya)
+const originalSeleccionar = seleccionar;
+seleccionar = function(i) {
+    originalSeleccionar(i);
+    // renderizar textos del slide seleccionado
+    renderSlideTexts();
+};
 
 // Conectar botón de "Texto" (si existe)
 if (addTextBtn) {
@@ -698,6 +762,15 @@ guardarJSON = function() {
     syncVisibleTextsToModel();
     originalGuardarJSON();
 };
+
+// Al inicio, renderizar textos del slide inicial (si existe)
+document.addEventListener('DOMContentLoaded', () => {
+    // Small delay para asegurar que todo el DOM y slides estén listos
+    setTimeout(() => {
+        if (actual >= 0) renderSlideTexts();
+    }, 10);
+});
+
 
 // Hacer funciones disponibles globalmente
 window.agregarDiapositiva = agregarDiapositiva;

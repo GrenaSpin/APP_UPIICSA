@@ -89,12 +89,7 @@ if ($id && file_exists("presentaciones/$id")) {
             </div>
             
             <div class="preview-box">
-                <!--
-                  IMPORTANTE:
-                  - No bloquees eventos del preview (pointer-events:none), porque el drag & drop depende de mousedown/mousemove.
-                  - Creamos estructura interna para que editor.js pueda actualizar título/contenido.
-                -->
-                <div id="preview" class="slide-preview">
+                <div id="preview" class="slide-preview" style="position:relative; transform-origin: top left;">
                     <h1 id="preview-title"></h1>
                     <div id="preview-content"></div>
                 </div>
@@ -207,8 +202,7 @@ if ($id && file_exists("presentaciones/$id")) {
 </div>
 
 <!-- ========== LÓGICA DEL EDITOR MEJORADA ========== -->
-<!-- Datos iniciales (diapositivas) para editor.js -->
-<script id="initial-data" type="application/json"><?= json_encode($data["diapositivas"], JSON_UNESCAPED_UNICODE) ?></script>
+<script id="initial-data" type="application/json"><?php echo json_encode($data["diapositivas"] ?? []); ?></script>
 <script src="../js/editor.js"></script>
 
 </body>

@@ -1,8 +1,8 @@
 <?php
-$titulo = $_POST["titulo"];
+$titulo = $_POST["titulo"] ?? "";
 $descripcion = $_POST["descripcion"] ?? "";
-$diapositivas = json_decode($_POST["data"], true);
-$id = $_POST["id"];
+$diapositivas = json_decode($_POST["data"] ?? "[]", true);
+$id = $_POST["id"] ?? "";
 
 // ID nuevo si no existe
 if (!$id) {
@@ -13,13 +13,16 @@ $data = [
     "id" => $id,
     "titulo" => $titulo,
     "descripcion" => $descripcion,
-    // Las cajas de texto arrastrables se guardan dentro de cada diapositiva
-    // (diapositivas[i].textos) desde editor.js.
+    // Aquí YA viaja todo: contenido + estilos + textos (textarea) por diapositiva
     "diapositivas" => $diapositivas
 ];
 
-if (!is_dir("presentaciones")) mkdir("presentaciones");
+if (!is_dir("presentaciones")) {
+    mkdir("presentaciones", 0777, true);
+}
 
-file_put_contents("presentaciones/$id", json_encode($data, JSON_PRETTY_PRINT));
+file_put_contents("presentaciones/" . $id, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
-header("Location: index.php");
+header("Location: editor.php?id=" . $id);
+exit;
+?>
