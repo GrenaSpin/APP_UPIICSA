@@ -1,28 +1,26 @@
 <?php
-$titulo = $_POST["titulo"] ?? "";
+$titulo = $_POST["titulo"] ?? "Mi Presentación";
 $descripcion = $_POST["descripcion"] ?? "";
 $diapositivas = json_decode($_POST["data"] ?? "[]", true);
 $id = $_POST["id"] ?? "";
 
+if (!is_array($diapositivas)) $diapositivas = [];
+
 // ID nuevo si no existe
 if (!$id) {
-    $id = uniqid() . ".json";
+  $id = uniqid() . ".json";
 }
 
 $data = [
-    "id" => $id,
-    "titulo" => $titulo,
-    "descripcion" => $descripcion,
-    // Aquí YA viaja todo: contenido + estilos + textos (textarea) por diapositiva
-    "diapositivas" => $diapositivas
+  "id" => $id,
+  "titulo" => $titulo,
+  "descripcion" => $descripcion,
+  "diapositivas" => $diapositivas
 ];
 
-if (!is_dir("presentaciones")) {
-    mkdir("presentaciones", 0777, true);
-}
+if (!is_dir("presentaciones")) mkdir("presentaciones", 0777, true);
 
-file_put_contents("presentaciones/" . $id, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+file_put_contents($ruta, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
-header("Location: editor.php?id=" . $id);
+header("Location: index.php");
 exit;
-?>

@@ -1,790 +1,601 @@
-// Variables globales mejoradas
+// ===== Editor de Presentación (Slides + Canvas de Textos) =====
+// Modelo: slides = [ { titulo, contenido, color, size, alineacion, textos: [ {id, texto, top,left,width,height,fontSize,bold} ] } ]
+
 let slides = [];
 let actual = -1;
 let zoomLevel = 1;
-let autoSaveTimer = null;
-let currentModalSlide = 0;
 
-// Selección de textos (para borde y acciones)
-let selectedTextRef = null; // { slide: number, index: number }
+// Estado de selección de textbox
+let selectedTextId = null;
+let clipboardTextObj = null;
 
-// Inicialización cuando el DOM está listo
-document.addEventListener('DOMContentLoaded', function() {
-    const previewEl = document.getElementById('preview');
-    if (previewEl) {
-        previewEl.style.position = 'relative';
-        previewEl.style.transformOrigin = 'top left';
-    }
+document.addEventListener("DOMContentLoaded", () => {
+  const initial = document.getElementById("initial-data");
+  if (initial && initial.textContent.trim()) {
+    try { slides = JSON.parse(initial.textContent); } catch { slides = []; }
+  }
+  if (!Array.isArray(slides)) slides = [];
 
-    // Obtener datos iniciales desde el HTML
-    const initialDataElement = document.getElementById('initial-data');
-    if (initialDataElement) {
-        slides = JSON.parse(initialDataElement.textContent);
-    }
-    
-    inicializarEditor();
+  // Normaliza slides
+  slides = slides.map(s => ({
+    titulo: s?.titulo ?? "Nuevo Slide",
+    contenido: s?.contenido ?? "",
+    color: s?.color ?? "#3b82f6",
+    size: s?.size ?? "28px",
+    alineacion: s?.alineacion ?? "center",
+    textos: Array.isArray(s?.textos) ? s.textos : []
+  }));
+
+  if (slides.length === 0) slides.push(nuevoSlide());
+
+  wireUI();
+  cargarListaSlides();
+  seleccionar(0);
+  actualizarZoomUI();
 });
 
-/* =======================
-   INICIALIZAR EDITOR
-   ======================= */
-function inicializarEditor() {
-    // Si no hay slides, crear uno por defecto
-    if (slides.length === 0) {
-        agregarDiapositiva();
-    } else {
-        cargarListaSlides();
-        seleccionar(0);
-    }
-    
-    actualizarContadores();
-    configurarAutoSave();
-}
-
-/* =======================
-   AGREGAR DIAPOSITIVA
-   ======================= */
-function agregarDiapositiva() {
-    const nuevoSlide = {
-        titulo: "Nuevo Slide",
-        contenido: "Escribe aquí tu contenido...",
-        color: "#3b82f6",
-        size: "28px",
-        alineacion: "center"
-    };
-    
-    slides.push(nuevoSlide);
+function wireUI() {
+  // slide navigation
+  document.getElementById("btn-prev")?.addEventListener("click", () => cambiarSlide(-1));
+  document.getElementById("btn-next")?.addEventListener("click", () => cambiarSlide(1));
+  document.getElementById("btn-add-slide")?.addEventListener("click", () => {
+    slides.push(nuevoSlide());
     cargarListaSlides();
     seleccionar(slides.length - 1);
     marcarCambios();
-}
-
-/* =======================
-   DUPLICAR SLIDE ACTUAL
-   ======================= */
-function duplicarSlide() {
-    if (actual < 0) return;
-    
-    const slideDuplicado = JSON.parse(JSON.stringify(slides[actual]));
-    slideDuplicado.titulo = slideDuplicado.titulo + " (Copia)";
-    
-    slides.splice(actual + 1, 0, slideDuplicado);
+  });
+  document.getElementById("btn-delete-slide")?.addEventListener("click", () => {
+    if (slides.length <= 1) return;
+    slides.splice(actual, 1);
+    const next = Math.min(actual, slides.length - 1);
     cargarListaSlides();
-    seleccionar(actual + 1);
+    seleccionar(next);
     marcarCambios();
-}
+  });
 
-/* =======================
-   ELIMINAR SLIDE ACTUAL
-   ======================= */
-function eliminarSlide() {
-    if (slides.length <= 1) {
-        alert("No puedes eliminar el único slide. La presentación debe tener al menos un slide.");
-        return;
+  // slide editing
+  document.getElementById("slide-title")?.addEventListener("input", (e) => {
+    if (actual < 0) return;
+    slides[actual].titulo = e.target.value;
+    document.querySelector(`#lista-slides [data-index="${actual}"] .thumb-title`)?.textContent = e.target.value || `Slide ${actual+1}`;
+    renderPreview();
+    marcarCambios();
+  });
+  document.getElementById("slide-content")?.addEventListener("input", (e) => {
+    if (actual < 0) return;
+    slides[actual].contenido = e.target.value;
+    renderPreview();
+    marcarCambios();
+  });
+
+  // formatting (markdown-ish)
+  document.getElementById("tool-bold")?.addEventListener("click", () => formatearTexto("bold"));
+  document.getElementById("tool-italic")?.addEventListener("click", () => formatearTexto("italic"));
+
+  // zoom
+  document.getElementById("zoom-in")?.addEventListener("click", () => setZoom(zoomLevel + 0.1));
+  document.getElementById("zoom-out")?.addEventListener("click", () => setZoom(zoomLevel - 0.1));
+  document.getElementById("zoom-reset")?.addEventListener("click", () => setZoom(1));
+
+  // preview modal
+  document.getElementById("full-preview")?.addEventListener("click", abrirModal);
+  document.getElementById("modal-close")?.addEventListener("click", cerrarModal);
+  document.getElementById("modal-prev")?.addEventListener("click", () => cambiarSlideModal(-1));
+  document.getElementById("modal-next")?.addEventListener("click", () => cambiarSlideModal(1));
+
+  // add text box
+  document.getElementById("add-text-btn")?.addEventListener("click", () => {
+    if (actual < 0) return;
+    const t = {
+      id: "t_" + Math.random().toString(36).slice(2, 10),
+      texto: "Escribe tu texto...",
+      top: 60,
+      left: 60,
+      width: 260,
+      height: 140,
+      fontSize: 18,
+      bold: false
+    };
+    ensureTextArray(actual).push(t);
+    renderSlideTexts();
+    seleccionarText(t.id);
+    marcarCambios();
+  });
+
+  // per textbox controls
+  document.getElementById("text-font-size")?.addEventListener("input", (e) => {
+    const obj = getSelectedTextObj();
+    if (!obj) return;
+    const v = parseInt(e.target.value, 10);
+    if (!Number.isFinite(v) || v < 8 || v > 96) return;
+    obj.fontSize = v;
+    applyTextStyle(obj.id);
+    marcarCambios();
+  });
+  document.getElementById("text-bold-btn")?.addEventListener("click", () => {
+    const obj = getSelectedTextObj();
+    if (!obj) return;
+    obj.bold = !obj.bold;
+    applyTextStyle(obj.id);
+    syncTextControls();
+    marcarCambios();
+  });
+
+  // delete / copy / paste / duplicate
+  window.addEventListener("keydown", (e) => {
+    const active = document.activeElement;
+    const typingInTextarea = active && active.tagName === "TEXTAREA" && active.closest(".canvas-textbox");
+
+    if ((e.key === "Backspace" || e.key === "Delete") && selectedTextId && !typingInTextarea) {
+      e.preventDefault();
+      eliminarSeleccionado();
+      return;
     }
-    
-    if (confirm("¿Estás seguro de que quieres eliminar este slide?")) {
-        slides.splice(actual, 1);
-        
-        // Ajustar el índice actual
-        if (actual >= slides.length) {
-            actual = slides.length - 1;
-        }
-        
-        cargarListaSlides();
-        if (slides.length > 0) {
-            seleccionar(actual);
-        }
-        marcarCambios();
+    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "c" && selectedTextId && !typingInTextarea) {
+      e.preventDefault();
+      const obj = getSelectedTextObj();
+      clipboardTextObj = obj ? structuredClone(obj) : null;
+      return;
     }
+    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "v" && !typingInTextarea) {
+      e.preventDefault();
+      pegarTextbox();
+      return;
+    }
+    if (e.ctrlKey && e.key.toLowerCase() === "d" && selectedTextId && !typingInTextarea) {
+      e.preventDefault();
+      duplicarSeleccionado();
+      return;
+    }
+  });
+
+  // form save hook
+  document.getElementById("editor-form")?.addEventListener("submit", () => {
+    guardarJSONEnHidden();
+  });
+
+  // click outside to clear selection
+  document.getElementById("preview")?.addEventListener("mousedown", (e) => {
+    if (e.target.id === "preview" || e.target.id === "preview-content" || e.target.id === "preview-title") {
+      clearTextSelection();
+    }
+  });
+
+  // close modal clicking backdrop
+  window.addEventListener("click", (e) => {
+    const modal = document.getElementById("preview-modal");
+    if (modal && e.target === modal) cerrarModal();
+  });
 }
 
-/* =======================
-   REORDENAR SLIDES
-   ======================= */
-function reordenarSlides() {
-    // Implementación básica - en una versión más avanzada podrías usar drag & drop
-    alert("Función de reordenar slides - Para implementar con drag & drop");
+function nuevoSlide() {
+  return { titulo: "Nuevo Slide", contenido: "", color: "#3b82f6", size: "28px", alineacion: "center", textos: [] };
 }
 
-/* =======================
-   CARGAR LISTA LATERAL
-   ======================= */
 function cargarListaSlides() {
-    const cont = document.getElementById("lista-slides");
-    if (!cont) return;
-    
-    cont.innerHTML = "";
+  const cont = document.getElementById("lista-slides");
+  if (!cont) return;
+  cont.innerHTML = "";
 
-    slides.forEach((s, i) => {
-        const div = document.createElement("div");
-        div.className = "slide-item" + (i === actual ? " active" : "");
-        div.innerHTML = `
-            <div class="slide-number">${i+1}</div>
-            <div class="slide-preview-mini">${s.titulo}</div>
-        `;
-        div.onclick = () => seleccionar(i);
-        cont.appendChild(div);
-    });
-    
-    actualizarContadores();
-}
+  slides.forEach((s, i) => {
+    const item = document.createElement("div");
+    item.className = "slide-thumb" + (i === actual ? " active" : "");
+    item.dataset.index = String(i);
 
-/* =======================
-   SELECCIONAR SLIDE
-   ======================= */
-function seleccionar(i) {
-    actual = i;
-    const s = slides[i];
-
-    // Actualizar controles de edición
-    const slideTitle = document.getElementById("slide-title");
-    const slideContent = document.getElementById("slide-content");
-    const fontSize = document.getElementById("font-size");
-    
-    if (slideTitle) slideTitle.value = s.titulo;
-    if (slideContent) slideContent.value = s.contenido;
-    if (fontSize) fontSize.value = s.size;
-
-    // Actualizar vista previa
-    actualizarVistaPrevia();
-    
-    // Actualizar indicadores
-    const currentIndicator = document.getElementById("current-slide-indicator");
-    const slidePosition = document.getElementById("slide-position");
-    
-    if (currentIndicator) currentIndicator.textContent = `Slide ${i+1}`;
-    if (slidePosition) slidePosition.textContent = `${i+1} / ${slides.length}`;
-    
-    // Actualizar botones de navegación
-    const btnPrev = document.getElementById("btn-prev");
-    const btnNext = document.getElementById("btn-next");
-    
-    if (btnPrev) btnPrev.disabled = i === 0;
-    if (btnNext) btnNext.disabled = i === slides.length - 1;
-    
-    // Resaltar color activo
-    document.querySelectorAll('.color-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('data-color') === s.color);
-    });
-    
-    cargarListaSlides();
-}
-
-/* =======================
-   ACTUALIZAR VISTA PREVIA
-   ======================= */
-function actualizarVistaPrevia() {
-    if (actual < 0) return;
-    
-    const s = slides[actual];
-    const preview = document.getElementById("preview");
-    const title = document.getElementById("preview-title");
-    const content = document.getElementById("preview-content");
-    
-    if (!preview || !title || !content) return;
-    
-    // Aplicar estilos
-    preview.style.background = s.color;
-    preview.style.fontSize = s.size;
-    preview.style.textAlign = s.alineacion || "center";
-    
-    // Actualizar contenido
-    title.textContent = s.titulo;
-    
-    // Procesar contenido con formato básico
-    content.innerHTML = procesarContenido(s.contenido);
-}
-
-/* =======================
-   PROCESAR CONTENIDO CON FORMATO
-   ======================= */
-
-   
-
-/* =======================
-   ACTUALIZAR SLIDE
-   ======================= */
-function actualizarSlide() {
-    if (actual < 0) return;
-
-    const slideTitle = document.getElementById("slide-title");
-    const slideContent = document.getElementById("slide-content");
-    const fontSize = document.getElementById("font-size");
-    
-    if (slideTitle && slideContent && fontSize) {
-        slides[actual].titulo = slideTitle.value;
-        slides[actual].contenido = slideContent.value;
-        slides[actual].size = fontSize.value;
-    }
-
-    actualizarVistaPrevia();
-    cargarListaSlides();
-    marcarCambios();
-}
-
-/* =======================
-   CAMBIAR COLOR
-   ======================= */
-function cambiarColor(c) {
-    if (actual < 0) return;
-    slides[actual].color = c;
-    actualizarVistaPrevia();
-    
-    // Actualizar selección visual de colores
-    document.querySelectorAll('.color-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('data-color') === c);
-    });
-    
-    marcarCambios();
-}
-
-/* =======================
-   CAMBIAR ALINEACIÓN
-   ======================= */
-function cambiarAlineacion(align) {
-    if (actual < 0) return;
-    slides[actual].alineacion = align;
-    actualizarVistaPrevia();
-    marcarCambios();
-}
-
-/* =======================
-   HERRAMIENTAS DE FORMATO DE TEXTO
-   ======================= */
-function formatearTexto(tipo) {
-    const textarea = document.getElementById("slide-content");
-    if (!textarea) return;
-    
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = textarea.value.substring(start, end);
-    
-    let nuevoTexto = "";
-    
-    switch(tipo) {
-        case 'bold':
-            nuevoTexto = `**${selectedText}**`;
-            break;
-        case 'italic':
-            nuevoTexto = `_${selectedText}_`;
-            break;
-        case 'bullet':
-            nuevoTexto = selectedText ? `* ${selectedText}` : `* `;
-            break;
-        case 'number':
-            nuevoTexto = selectedText ? `1. ${selectedText}` : `1. `;
-            break;
-    }
-    
-    // Reemplazar texto seleccionado
-    textarea.value = textarea.value.substring(0, start) + nuevoTexto + textarea.value.substring(end);
-    
-    // Actualizar slide
-    actualizarSlide();
-    
-    // Restaurar foco y selección
-    textarea.focus();
-    textarea.setSelectionRange(start, start + nuevoTexto.length);
-}
-
-/* =======================
-   NAVEGACIÓN ENTRE SLIDES
-   ======================= */
-function slideAnterior() {
-    if (actual > 0) {
-        seleccionar(actual - 1);
-    }
-}
-
-function slideSiguiente() {
-    if (actual < slides.length - 1) {
-        seleccionar(actual + 1);
-    }
-}
-
-/* =======================
-   ZOOM DE VISTA PREVIA
-   ======================= */
-function cambiarZoom(delta) {
-    const preview = document.getElementById("preview");
-    const zoomLevelElement = document.getElementById("zoom-level");
-    
-    if (!preview || !zoomLevelElement) return;
-    
-    zoomLevel = Math.max(0.5, Math.min(2, zoomLevel + delta));
-    preview.style.transformOrigin = "top left";
-    preview.style.transform = `scale(${zoomLevel})`;
-    zoomLevelElement.textContent = Math.round(zoomLevel * 100) + "%";
-}
-
-/* =======================
-   VISTA PREVIA COMPLETA
-   ======================= */
-function previsualizarPresentacion() {
-    if (slides.length === 0) {
-        alert("No hay slides para previsualizar");
-        return;
-    }
-    
-    currentModalSlide = 0;
-    actualizarModalPreview();
-    
-    const modal = document.getElementById("preview-modal");
-    if (modal) {
-        modal.style.display = "block";
-    }
-}
-
-function cerrarModal() {
-    const modal = document.getElementById("preview-modal");
-    if (modal) {
-        modal.style.display = "none";
-    }
-}
-
-function cambiarSlideModal(direction) {
-    currentModalSlide += direction;
-    
-    if (currentModalSlide < 0) currentModalSlide = 0;
-    if (currentModalSlide >= slides.length) currentModalSlide = slides.length - 1;
-    
-    actualizarModalPreview();
-}
-
-function actualizarModalPreview() {
-    const modalPreview = document.getElementById("full-preview");
-    const modalPosition = document.getElementById("modal-slide-position");
-    
-    if (!modalPreview || !modalPosition) return;
-    
-    const s = slides[currentModalSlide];
-    
-    modalPreview.innerHTML = `
-        <div class="modal-slide" style="background: ${s.color}; font-size: ${s.size}; text-align: ${s.alineacion || 'center'}">
-            <h1>${s.titulo}</h1>
-            <div class="modal-content">${procesarContenido(s.contenido)}</div>
-        </div>
+    item.innerHTML = `
+      <div class="thumb-num">${i+1}</div>
+      <div class="thumb-title">${escapeHtml(s.titulo || `Slide ${i+1}`)}</div>
     `;
-    
-    modalPosition.textContent = `Slide ${currentModalSlide + 1} de ${slides.length}`;
+    item.addEventListener("click", () => seleccionar(i));
+    cont.appendChild(item);
+  });
+
+  actualizarContadores();
 }
 
-/* =======================
-   AUTO-GUARDADO Y ESTADO
-   ======================= */
-function configurarAutoSave() {
-    // Configurar auto-guardado cada 30 segundos
-    setInterval(function() {
-        const saveStatus = document.getElementById("save-status");
-        if (saveStatus && saveStatus.textContent === "Cambios sin guardar") {
-            guardarJSON();
-            saveStatus.textContent = "Auto-guardado";
-            setTimeout(() => {
-                if (saveStatus.textContent === "Auto-guardado") {
-                    saveStatus.textContent = "Guardado";
-                }
-            }, 2000);
-        }
-    }, 30000);
+function seleccionar(i) {
+  if (i < 0 || i >= slides.length) return;
+  actual = i;
+
+  // UI active thumb
+  document.querySelectorAll("#lista-slides .slide-thumb").forEach(el => el.classList.remove("active"));
+  document.querySelector(`#lista-slides .slide-thumb[data-index="${i}"]`)?.classList.add("active");
+
+  // Fill editor inputs
+  const s = slides[i];
+  const title = document.getElementById("slide-title");
+  const content = document.getElementById("slide-content");
+  if (title) title.value = s.titulo ?? "";
+  if (content) content.value = s.contenido ?? "";
+
+  // Update indicator
+  const ind = document.getElementById("current-slide-indicator");
+  if (ind) ind.textContent = `Slide ${i+1}`;
+
+  clearTextSelection();
+  renderPreview();
+  renderSlideTexts();
+  actualizarContadores();
 }
 
-function marcarCambios() {
-    const saveStatus = document.getElementById("save-status");
-    if (saveStatus) {
-        saveStatus.textContent = "Cambios sin guardar";
-    }
-    actualizarContadores();
+function cambiarSlide(delta) {
+  const next = actual + delta;
+  if (next < 0 || next >= slides.length) return;
+  seleccionar(next);
 }
 
 function actualizarContadores() {
-    const slideCount = document.getElementById("slide-count");
-    if (slideCount) {
-        slideCount.textContent = slides.length;
-    }
+  const count = document.getElementById("slide-count");
+  const pos = document.getElementById("slide-position");
+  if (count) count.textContent = `${slides.length}`;
+  if (pos) pos.textContent = `${Math.max(actual+1,1)}`;
 }
 
-/* =======================
-   GUARDAR JSON
-   ======================= */
-function guardarJSON() {
-    const dataInput = document.getElementById("data");
-    const saveStatus = document.getElementById("save-status");
-    
-    if (dataInput) {
-        dataInput.value = JSON.stringify(slides);
-    }
-    
-    if (saveStatus) {
-        saveStatus.textContent = "Guardando...";
-        
-        // Simular guardado
-        setTimeout(() => {
-            saveStatus.textContent = "Guardado";
-        }, 500);
-    }
+function renderPreview() {
+  const canvas = document.getElementById("preview");
+  const titleEl = document.getElementById("preview-title");
+  const contentEl = document.getElementById("preview-content");
+  if (!canvas || actual < 0) return;
+  const s = slides[actual];
+
+  // background
+  canvas.style.background = s.color || "#111827";
+
+  if (titleEl) titleEl.textContent = s.titulo || "";
+  if (contentEl) contentEl.innerHTML = procesarContenido(s.contenido || "");
+
+  // textboxes are rendered separately
 }
 
-// Cerrar modal al hacer clic fuera
-window.onclick = function(event) {
-    const modal = document.getElementById("preview-modal");
-    if (event.target === modal) {
-        cerrarModal();
-    }
+function procesarContenido(text) {
+  // Simple escape + newline -> <br>. Puedes mejorar luego.
+  return escapeHtml(text).replace(/\n/g, "<br>");
 }
 
-// Prevenir pérdida accidental de datos
-window.addEventListener('beforeunload', function(e) {
-    const saveStatus = document.getElementById("save-status");
-    if (saveStatus && saveStatus.textContent === "Cambios sin guardar") {
-        e.preventDefault();
-        e.returnValue = '';
-    }
-});
-
-const initialDataElement = document.getElementById('initial-data');
-if (initialDataElement) {
-    slides = JSON.parse(initialDataElement.textContent);
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-/* =======================
-   TEXTOS ARRASTRABLES POR SLIDE
-   ======================= */
+// ======= Formateo del textarea principal del slide =======
+function formatearTexto(tipo) {
+  const textarea = document.getElementById("slide-content");
+  if (!textarea) return;
 
-// Asegurarnos de que el contenedor preview existe
-const canvas = document.getElementById('preview');
-const addTextBtn = document.getElementById('add-text-btn');
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selected = textarea.value.substring(start, end);
 
-// Clic en el fondo: quitar selección
-if (canvas) {
-    canvas.addEventListener('mousedown', (e) => {
-        // Si el clic fue dentro de un cuadro de texto, no deseleccionar
-        if (e.target && e.target.closest && e.target.closest('.draggable-text')) return;
-        setSelectedText(null, null);
+  let insert = "";
+  if (tipo === "bold") insert = `**${selected}**`;
+  if (tipo === "italic") insert = `_${selected}_`;
+
+  textarea.setRangeText(insert, start, end, "end");
+  textarea.dispatchEvent(new Event("input"));
+  textarea.focus();
+}
+
+// ===== Zoom =====
+function setZoom(val) {
+  zoomLevel = Math.max(0.3, Math.min(2.5, Math.round(val*10)/10));
+  const canvas = document.getElementById("preview");
+  if (canvas) {
+    canvas.style.transformOrigin = "top left";
+    canvas.style.transform = `scale(${zoomLevel})`;
+  }
+  actualizarZoomUI();
+}
+
+function actualizarZoomUI() {
+  const z = document.getElementById("zoom-level");
+  if (z) z.textContent = `${Math.round(zoomLevel*100)}%`;
+}
+
+// ===== Modal =====
+let currentModalSlide = 0;
+
+function abrirModal() {
+  const modal = document.getElementById("preview-modal");
+  if (!modal) return;
+  currentModalSlide = Math.max(actual, 0);
+  modal.style.display = "flex";
+  renderModalSlide();
+}
+
+function cerrarModal() {
+  const modal = document.getElementById("preview-modal");
+  if (modal) modal.style.display = "none";
+}
+
+function cambiarSlideModal(delta) {
+  const next = currentModalSlide + delta;
+  if (next < 0 || next >= slides.length) return;
+  currentModalSlide = next;
+  renderModalSlide();
+}
+
+function renderModalSlide() {
+  const modalTitle = document.getElementById("modal-slide-title");
+  const modalBody = document.getElementById("modal-slide-body");
+  const pos = document.getElementById("modal-slide-position");
+  if (!modalBody || !slides[currentModalSlide]) return;
+
+  const s = slides[currentModalSlide];
+  if (modalTitle) modalTitle.textContent = s.titulo || "";
+  modalBody.style.background = s.color || "#111827";
+  modalBody.innerHTML = `
+    <div class="modal-inner">
+      <h2>${escapeHtml(s.titulo || "")}</h2>
+      <div class="modal-content">${procesarContenido(s.contenido || "")}</div>
+    </div>
+  `;
+
+  // Render textboxes into modal (read-only)
+  if (Array.isArray(s.textos)) {
+    s.textos.forEach(t => {
+      const el = document.createElement("div");
+      el.className = "modal-textbox";
+      el.style.top = `${t.top}px`;
+      el.style.left = `${t.left}px`;
+      el.style.width = `${t.width}px`;
+      el.style.height = `${t.height}px`;
+      el.style.fontSize = `${t.fontSize || 18}px`;
+      el.style.fontWeight = t.bold ? "700" : "400";
+      el.textContent = t.texto || "";
+      modalBody.appendChild(el);
     });
+  }
+
+  if (pos) pos.textContent = `Slide ${currentModalSlide+1} de ${slides.length}`;
 }
 
-// Utilidades
+// ===== Guardado =====
+function guardarJSONEnHidden() {
+  const dataInput = document.getElementById("data");
+  if (dataInput) dataInput.value = JSON.stringify(slides);
+  const status = document.getElementById("save-status");
+  if (status) status.textContent = "Guardado";
+}
+
+function marcarCambios() {
+  const status = document.getElementById("save-status");
+  if (status) status.textContent = "Cambios sin guardar";
+}
+
+// ===== Canvas de textos (draggable + resize + delete + copy/paste) =====
 function ensureTextArray(slideIndex) {
-    if (!slides[slideIndex]) return;
-    if (!Array.isArray(slides[slideIndex].textos)) {
-        slides[slideIndex].textos = [];
-    }
+  if (!slides[slideIndex]) return [];
+  if (!Array.isArray(slides[slideIndex].textos)) slides[slideIndex].textos = [];
+  return slides[slideIndex].textos;
 }
 
-// Renderiza (borra y crea) todos los textos del slide actual
 function renderSlideTexts() {
-    if (actual < 0 || !canvas) return;
+  const canvas = document.getElementById("preview");
+  if (!canvas || actual < 0) return;
 
-    // Elimina los elementos .draggable-text visibles previos
-    const existing = canvas.querySelectorAll('.draggable-text');
-    existing.forEach(el => el.remove());
+  // limpia existentes
+  canvas.querySelectorAll(".canvas-textbox").forEach(el => el.remove());
 
-    ensureTextArray(actual);
+  const list = ensureTextArray(actual);
+  list.forEach(obj => {
+    createTextboxElement(obj);
+  });
 
-    // Crear textarea por cada texto guardado en slides[actual].textos
-    slides[actual].textos.forEach((t, index) => {
-        createDraggableTextElement(actual, index, t);
-    });
-
-    // Reaplica borde de selección
-    refreshSelectionOutlines();
+  syncTextControls();
 }
 
-// Crea el elemento textarea arrastrable y lo enlaza con slides[slideIndex].textos[index]
+function createTextboxElement(obj) {
+  const canvas = document.getElementById("preview");
+  if (!canvas) return;
 
-function setSelectedText(slideIndex, index) {
-    selectedTextRef = (slideIndex === null || index === null) ? null : { slide: slideIndex, index: index };
-    refreshSelectionOutlines();
+  const box = document.createElement("div");
+  box.className = "canvas-textbox";
+  box.dataset.id = obj.id;
+
+  box.style.top = `${obj.top}px`;
+  box.style.left = `${obj.left}px`;
+  box.style.width = `${obj.width}px`;
+  box.style.height = `${obj.height}px`;
+
+  // Handle superior (para arrastrar)
+  const handle = document.createElement("div");
+  handle.className = "tb-handle";
+  handle.innerHTML = `<span>Texto</span><button class="tb-x" title="Eliminar">×</button>`;
+  box.appendChild(handle);
+
+  // textarea (editable)
+  const ta = document.createElement("textarea");
+  ta.className = "tb-textarea";
+  ta.value = obj.texto ?? "";
+  box.appendChild(ta);
+
+  // resize handle
+  const rh = document.createElement("div");
+  rh.className = "tb-resize";
+  box.appendChild(rh);
+
+  canvas.appendChild(box);
+  applyTextStyle(obj.id);
+
+  // select
+  box.addEventListener("mousedown", (e) => {
+    // seleccionar al hacer click en cualquier parte del box (menos cuando arrastras resize)
+    if (e.target.classList.contains("tb-resize")) return;
+    seleccionarText(obj.id);
+  });
+
+  // click derecho: eliminar
+  box.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    seleccionarText(obj.id);
+    eliminarSeleccionado();
+  });
+
+  // eliminar con X
+  handle.querySelector(".tb-x")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    seleccionarText(obj.id);
+    eliminarSeleccionado();
+  });
+
+  // escribir: actualizar modelo
+  ta.addEventListener("input", () => {
+    const model = getTextObjById(obj.id);
+    if (!model) return;
+    model.texto = ta.value;
+    marcarCambios();
+  });
+
+  // Drag: SOLO desde handle
+  handle.addEventListener("mousedown", (e) => {
+    if (e.target.classList.contains("tb-x")) return;
+    e.preventDefault();
+    seleccionarText(obj.id);
+    startDrag(box, obj.id, e);
+  });
+
+  // Resize
+  rh.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    seleccionarText(obj.id);
+    startResize(box, obj.id, e);
+  });
 }
 
-function refreshSelectionOutlines() {
-    if (!canvas) return;
-    const all = canvas.querySelectorAll('.draggable-text');
-    all.forEach(w => {
-        const s = Number(w.dataset.slide);
-        const i = Number(w.dataset.index);
-        const isSel = selectedTextRef && selectedTextRef.slide === s && selectedTextRef.index === i;
-        w.style.outline = isSel ? '2px solid rgba(255,255,255,0.85)' : 'none';
-        w.style.boxShadow = isSel ? '0 0 0 2px rgba(0,0,0,0.25)' : 'none';
-    });
+function seleccionarText(id) {
+  selectedTextId = id;
+  document.querySelectorAll(".canvas-textbox").forEach(el => el.classList.toggle("selected", el.dataset.id === id));
+  syncTextControls();
 }
 
-function createDraggableTextElement(slideIndex, index, textoObj) {
-    // Contenedor (se mueve este, no el textarea directamente)
-    const wrapper = document.createElement('div');
-    wrapper.className = 'draggable-text';
-    wrapper.dataset.slide = slideIndex;
-    wrapper.dataset.index = index;
-
-    // Estilos base si no vienen
-    const w = textoObj.width ?? 240;
-    const h = textoObj.height ?? 140;
-    const top = (typeof textoObj.top !== 'undefined') ? textoObj.top : 50;
-    const left = (typeof textoObj.left !== 'undefined') ? textoObj.left : 50;
-
-    wrapper.style.position = 'absolute';
-    wrapper.style.top = `${top}px`;
-    wrapper.style.left = `${left}px`;
-    wrapper.style.width = `${w}px`;
-    wrapper.style.height = `${h}px`;
-    wrapper.style.zIndex = 50;
-    wrapper.style.boxSizing = 'border-box';
-    wrapper.style.border = '1px dashed rgba(255,255,255,0.65)';
-    wrapper.style.borderRadius = '8px';
-    wrapper.style.background = 'rgba(0,0,0,0.25)';
-    wrapper.style.backdropFilter = 'blur(2px)';
-
-    // Barra/handle para mover
-    const handle = document.createElement('div');
-    handle.className = 'text-handle';
-    handle.textContent = '';
-    handle.style.display = 'flex';
-    handle.style.alignItems = 'center';
-    handle.style.justifyContent = 'space-between';
-
-    const handleLabel = document.createElement('span');
-    handleLabel.textContent = 'Texto';
-
-    const delBtn = document.createElement('button');
-    delBtn.type = 'button';
-    delBtn.textContent = '×';
-    delBtn.title = 'Eliminar';
-    delBtn.style.width = '22px';
-    delBtn.style.height = '22px';
-    delBtn.style.border = 'none';
-    delBtn.style.background = 'transparent';
-    delBtn.style.color = 'rgba(255,255,255,0.95)';
-    delBtn.style.cursor = 'pointer';
-    delBtn.style.fontSize = '16px';
-    delBtn.style.lineHeight = '22px';
-    delBtn.style.padding = '0';
-    delBtn.style.margin = '0';
-
-    handle.appendChild(handleLabel);
-    handle.appendChild(delBtn);
-
-    handle.style.height = '22px';
-    handle.style.lineHeight = '22px';
-    handle.style.padding = '0 8px';
-    handle.style.cursor = 'move';
-    handle.style.userSelect = 'none';
-    handle.style.fontSize = '12px';
-    handle.style.fontWeight = '600';
-    handle.style.color = 'rgba(255,255,255,0.9)';
-    handle.style.background = 'rgba(0,0,0,0.35)';
-    handle.style.borderBottom = '1px solid rgba(255,255,255,0.25)';
-    handle.style.borderTopLeftRadius = '8px';
-    handle.style.borderTopRightRadius = '8px';
-
-    // Textarea (aquí SÍ se escribe)
-    const ta = document.createElement('textarea');
-    ta.className = 'text-area';
-    ta.value = textoObj.texto ?? '';
-    ta.style.width = '100%';
-    ta.style.height = `calc(100% - 22px)`;
-    ta.style.boxSizing = 'border-box';
-    ta.style.padding = '10px';
-    ta.style.border = '0';
-    ta.style.outline = 'none';
-    ta.style.resize = 'both'; // permite redimensionar
-    ta.style.background = 'transparent';
-    ta.style.color = 'white';
-    ta.style.fontSize = '16px';
-
-    wrapper.appendChild(handle);
-    
-
-    // Seleccionar al hacer click en el cuadro (sin bloquear edición)
-    wrapper.addEventListener('mousedown', (ev) => {
-        if (ev.target === delBtn) return;
-        setSelectedText(slideIndex, index);
-    });
-
-    // Borrar el cuadro
-    delBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        const sIdx = Number(wrapper.dataset.slide);
-        const iIdx = Number(wrapper.dataset.index);
-        if (!slides[sIdx] || !slides[sIdx].textos) return;
-
-        slides[sIdx].textos.splice(iIdx, 1);
-
-        // Si borraste el seleccionado, limpiar selección
-        if (selectedTextRef && selectedTextRef.slide === sIdx && selectedTextRef.index === iIdx) {
-            selectedTextRef = null;
-        }
-
-        // Re-render para recalcular índices
-        renderSlideTexts();
-        marcarCambios();
-    });
-
-wrapper.appendChild(ta);
-    canvas.appendChild(wrapper);
-
-    // Guardar escritura en JSON
-    ta.addEventListener('input', () => {
-        const sIdx = Number(wrapper.dataset.slide);
-        const iIdx = Number(wrapper.dataset.index);
-        if (!slides[sIdx] || !slides[sIdx].textos || !slides[sIdx].textos[iIdx]) return;
-        slides[sIdx].textos[iIdx].texto = ta.value;
-        marcarCambios();
-    });
-
-    // Guardar tamaño al terminar resize (cuando sueltas el mouse)
-    wrapper.addEventListener('mouseup', () => {
-        const sIdx = Number(wrapper.dataset.slide);
-        const iIdx = Number(wrapper.dataset.index);
-        if (!slides[sIdx] || !slides[sIdx].textos || !slides[sIdx].textos[iIdx]) return;
-        slides[sIdx].textos[iIdx].width = wrapper.offsetWidth;
-        slides[sIdx].textos[iIdx].height = wrapper.offsetHeight;
-        marcarCambios();
-    });
-
-    // Drag SOLO desde la barra (para que el textarea se pueda escribir normal)
-    makeElementDraggable(wrapper, handle, slideIndex, index);
+function clearTextSelection() {
+  selectedTextId = null;
+  document.querySelectorAll(".canvas-textbox").forEach(el => el.classList.remove("selected"));
+  syncTextControls();
 }
 
-// Lógica de arrastre (corrige zoom + coordenadas relativas al canvas)
-function makeElementDraggable(wrapper, handle, slideIndex, index) {
-    let startX = 0, startY = 0;
-    let startTop = 0, startLeft = 0;
-
-    const onMove = (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const dx = (e.clientX - startX) / (zoomLevel || 1);
-        const dy = (e.clientY - startY) / (zoomLevel || 1);
-
-        let newTop = startTop + dy;
-        let newLeft = startLeft + dx;
-
-        // límites dentro del canvas (en coord no escaladas)
-        const maxTop = Math.max(0, (canvas.clientHeight - wrapper.offsetHeight));
-        const maxLeft = Math.max(0, (canvas.clientWidth - wrapper.offsetWidth));
-
-        newTop = Math.max(0, Math.min(newTop, maxTop));
-        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-
-        wrapper.style.top = `${newTop}px`;
-        wrapper.style.left = `${newLeft}px`;
-
-        // Guardar en modelo (posiciones no escaladas)
-        if (slides[slideIndex] && slides[slideIndex].textos && slides[slideIndex].textos[index]) {
-            slides[slideIndex].textos[index].top = newTop;
-            slides[slideIndex].textos[index].left = newLeft;
-        }
-    };
-
-    const onUp = () => {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-        marcarCambios();
-    };
-
-    handle.addEventListener('mousedown', (e) => {
-        // Solo mover si el click es en el handle
-        e.preventDefault(); // evita selección/arrastre raro
-        startX = e.clientX;
-        startY = e.clientY;
-        startTop = wrapper.offsetTop;
-        startLeft = wrapper.offsetLeft;
-
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-    });
+function getTextObjById(id) {
+  if (actual < 0) return null;
+  return ensureTextArray(actual).find(t => t.id === id) || null;
+}
+function getSelectedTextObj() {
+  return selectedTextId ? getTextObjById(selectedTextId) : null;
 }
 
-// Agregar nuevo texto al slide actual
-function addTextToCurrentSlide() {
-    if (actual < 0) return;
-    ensureTextArray(actual);
+function syncTextControls() {
+  const panel = document.getElementById("text-controls");
+  const fs = document.getElementById("text-font-size");
+  const bb = document.getElementById("text-bold-btn");
+  const obj = getSelectedTextObj();
 
-    const slideTexts = slides[actual].textos;
-    const index = slideTexts.length;
-
-    // crear objeto default
-    const textoObj = {
-        texto: 'Escribe tu texto...',
-        top: 50,
-        left: 50,
-        width: 200,
-        height: 100
-    };
-
-    // push al modelo
-    slideTexts.push(textoObj);
-
-    // renderizar (añade el nuevo)
-    createDraggableTextElement(actual, index, textoObj);
-    
-    setSelectedText(actual, index);
-marcarCambios();
+  if (panel) panel.style.display = obj ? "block" : "none";
+  if (fs) fs.value = obj ? String(obj.fontSize || 18) : "18";
+  if (bb) bb.classList.toggle("active", !!obj?.bold);
 }
 
-// Al cambiar de slide, debemos renderizar sus textos
-// Llamar desde seleccionar() al final (si no lo hace ya)
-const originalSeleccionar = seleccionar;
-seleccionar = function(i) {
-    originalSeleccionar(i);
-    // renderizar textos del slide seleccionado
-    renderSlideTexts();
-};
-
-// Conectar botón de "Texto" (si existe)
-if (addTextBtn) {
-    addTextBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        addTextToCurrentSlide();
-    });
+function applyTextStyle(id) {
+  const obj = getTextObjById(id);
+  const el = document.querySelector(`.canvas-textbox[data-id="${id}"] textarea`);
+  if (!obj || !el) return;
+  el.style.fontSize = `${obj.fontSize || 18}px`;
+  el.style.fontWeight = obj.bold ? "700" : "400";
 }
 
-// Al guardar JSON, ya estás serializando `slides`, así que no necesitas mover nada.
-// Sin embargo, asegurémonos que antes de serializar el tamaño/posiciones estén actualizadas:
-// (por si hay textareas visibles y el usuario no terminó una acción)
-function syncVisibleTextsToModel() {
-    const visibles = canvas.querySelectorAll('.draggable-text');
-    visibles.forEach(el => {
-        const sIdx = Number(el.dataset.slide);
-        const iIdx = Number(el.dataset.index);
-        if (!slides[sIdx] || !slides[sIdx].textos || !slides[sIdx].textos[iIdx]) return;
-        slides[sIdx].textos[iIdx].texto = el.value;
-        slides[sIdx].textos[iIdx].top = el.offsetTop;
-        slides[sIdx].textos[iIdx].left = el.offsetLeft;
-        slides[sIdx].textos[iIdx].width = el.clientWidth;
-        slides[sIdx].textos[iIdx].height = el.clientHeight;
-    });
+function eliminarSeleccionado() {
+  if (!selectedTextId || actual < 0) return;
+  const arr = ensureTextArray(actual);
+  const idx = arr.findIndex(t => t.id === selectedTextId);
+  if (idx >= 0) arr.splice(idx, 1);
+  selectedTextId = null;
+  renderSlideTexts();
+  marcarCambios();
 }
 
-// Interceptar guardarJSON para sincronizar antes
-const originalGuardarJSON = guardarJSON;
-guardarJSON = function() {
-    syncVisibleTextsToModel();
-    originalGuardarJSON();
-};
+function duplicarSeleccionado() {
+  const obj = getSelectedTextObj();
+  if (!obj) return;
+  const copy = structuredClone(obj);
+  copy.id = "t_" + Math.random().toString(36).slice(2, 10);
+  copy.top += 20;
+  copy.left += 20;
+  ensureTextArray(actual).push(copy);
+  renderSlideTexts();
+  seleccionarText(copy.id);
+  marcarCambios();
+}
 
-// Al inicio, renderizar textos del slide inicial (si existe)
-document.addEventListener('DOMContentLoaded', () => {
-    // Small delay para asegurar que todo el DOM y slides estén listos
-    setTimeout(() => {
-        if (actual >= 0) renderSlideTexts();
-    }, 10);
-});
+function pegarTextbox() {
+  if (!clipboardTextObj || actual < 0) return;
+  const copy = structuredClone(clipboardTextObj);
+  copy.id = "t_" + Math.random().toString(36).slice(2, 10);
+  copy.top = (copy.top ?? 60) + 20;
+  copy.left = (copy.left ?? 60) + 20;
+  ensureTextArray(actual).push(copy);
+  renderSlideTexts();
+  seleccionarText(copy.id);
+  marcarCambios();
+}
 
+function startDrag(box, id, e) {
+  const obj = getTextObjById(id);
+  if (!obj) return;
 
-// Hacer funciones disponibles globalmente
-window.agregarDiapositiva = agregarDiapositiva;
-window.duplicarSlide = duplicarSlide;
-window.eliminarSlide = eliminarSlide;
-window.reordenarSlides = reordenarSlides;
-window.seleccionar = seleccionar;
-window.actualizarSlide = actualizarSlide;
-window.cambiarColor = cambiarColor;
-window.cambiarAlineacion = cambiarAlineacion;
-window.formatearTexto = formatearTexto;
-window.slideAnterior = slideAnterior;
-window.slideSiguiente = slideSiguiente;
-window.cambiarZoom = cambiarZoom;
-window.previsualizarPresentacion = previsualizarPresentacion;
-window.cerrarModal = cerrarModal;
-window.cambiarSlideModal = cambiarSlideModal;
+  const canvas = document.getElementById("preview");
+  const rect = canvas.getBoundingClientRect();
+
+  const startX = e.clientX;
+  const startY = e.clientY;
+  const origLeft = obj.left;
+  const origTop = obj.top;
+
+  function onMove(ev) {
+    const dx = (ev.clientX - startX) / zoomLevel;
+    const dy = (ev.clientY - startY) / zoomLevel;
+
+    obj.left = Math.max(0, Math.round(origLeft + dx));
+    obj.top = Math.max(0, Math.round(origTop + dy));
+
+    box.style.left = `${obj.left}px`;
+    box.style.top = `${obj.top}px`;
+  }
+  function onUp() {
+    window.removeEventListener("mousemove", onMove);
+    window.removeEventListener("mouseup", onUp);
+    marcarCambios();
+  }
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", onUp);
+}
+
+function startResize(box, id, e) {
+  const obj = getTextObjById(id);
+  if (!obj) return;
+
+  const startX = e.clientX;
+  const startY = e.clientY;
+  const origW = obj.width;
+  const origH = obj.height;
+
+  function onMove(ev) {
+    const dx = (ev.clientX - startX) / zoomLevel;
+    const dy = (ev.clientY - startY) / zoomLevel;
+
+    obj.width = Math.max(120, Math.round(origW + dx));
+    obj.height = Math.max(60, Math.round(origH + dy));
+
+    box.style.width = `${obj.width}px`;
+    box.style.height = `${obj.height}px`;
+  }
+  function onUp() {
+    window.removeEventListener("mousemove", onMove);
+    window.removeEventListener("mouseup", onUp);
+    marcarCambios();
+  }
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", onUp);
+}

@@ -2,20 +2,5 @@
     "id": "691cdb793038c.json",
     "titulo": "Titulo",
     "descripcion": "KJKDSAKF",
-    "diapositivas": [
-        {
-            "titulo": "Nuevo Slide",
-            "contenido": "Hola buenas tardes",
-            "color": "#3b82f6",
-            "size": "28px",
-            "alineacion": "center"
-        },
-        {
-            "titulo": "Nuevo Slide",
-            "contenido": "Escribe aqu\u00ed tu contenido...",
-            "color": "#3b82f6",
-            "size": "28px",
-            "alineacion": "center"
-        }
-    ]
+    "diapositivas": null
 }
