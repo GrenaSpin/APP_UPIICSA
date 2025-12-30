@@ -630,3 +630,7 @@
       height: 300px;
     }
   }
+
+/* --- Slides jump selector --- */
+.slides-jump{padding:10px 12px;border-top:1px solid var(--stroke);display:flex;flex-direction:column;gap:6px;}
+.slides-jump select{width:100%;}

@@ -1,214 +1,215 @@
 <?php
-session_start();
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-  header('Location: login.php');
-  exit;
-}
-
-$id = $_GET["id"] ?? "";
+$id = $_GET["id"] ?? null;
 
 $data = [
-  "id" => $id,
-  "titulo" => "",
-  "descripcion" => "",
-  "diapositivas" => []
+    "id" => "",
+    "titulo" => "",
+    "descripcion" => "",
+    "diapositivas" => []
 ];
 
 if ($id && file_exists("presentaciones/$id")) {
-  $decoded = json_decode(file_get_contents("presentaciones/$id"), true);
-  if (is_array($decoded)) $data = array_merge($data, $decoded);
+    $data = json_decode(file_get_contents("presentaciones/$id"), true);
 }
-
-$slides = $data["diapositivas"] ?? [];
-if (!is_array($slides)) $slides = [];
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Editor - <?= htmlspecialchars($data["titulo"] ?: "Presentación") ?></title>
-  <link rel="stylesheet" href="../css/editor.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Editor de Presentación</title>
+<link rel="stylesheet" href="../css/editor.css">
 </head>
 <body>
 
 <div class="header-container">
-  <h1>Editor de Presentación</h1>
-
-  <div class="presentation-info">
-    <div class="info-item">
-      <span class="info-label">Slide:</span>
-      <span id="slide-position">1</span>/<span id="slide-count">1</span>
+    <h1>Editor de Presentación</h1>
+    <div class="presentation-info">
+        <div class="info-item">
+            <span class="info-label">Slides:</span>
+            <span id="slide-count">0</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Estado:</span>
+            <span id="save-status">Guardado</span>
+        </div>
     </div>
-    <div class="info-item">
-      <span class="info-label">Estado:</span>
-      <span id="save-status">Guardado</span>
-    </div>
-  </div>
 </div>
 
-<div class="app">
-  <!-- LEFT: slides -->
-  <section class="panel">
-    <header>
-      <h3>Slides</h3>
-      <span class="muted">Lista</span>
-    </header>
+<!-- ================= FORMULARIO PRINCIPAL ================= -->
+<form method="POST" action="guardar.php" id="presentation-form">
 
-    <div class="list">
-      <div class="row">
-        <button type="button" class="btn primary" id="btn-add-slide">+ Slide</button>
-        <button type="button" class="btn danger" id="btn-delete-slide">Eliminar</button>
-      </div>
+    <div class="form-section">
+        <label>Título de la Presentación:</label>
+        <input type="text" name="titulo" class="input" value="<?= htmlspecialchars($data["titulo"]) ?>" placeholder="Ingresa el título de tu presentación" required>
 
-      <div id="lista-slides" class="list" style="padding:0; gap:8px;"></div>
+        <label>Descripción:</label>
+        <textarea name="descripcion" placeholder="Describe brevemente tu presentación"><?= htmlspecialchars($data["descripcion"]) ?></textarea>
     </div>
-  </section>
 
-  <!-- CENTER: preview -->
-  <section class="center">
-    <div class="stage-wrap">
-      <div class="stage-toolbar">
-        <div class="row">
-          <button type="button" class="btn" id="btn-prev">◀ Anterior</button>
-          <button type="button" class="btn" id="btn-next">Siguiente ▶</button>
-          <span class="muted" id="current-slide-indicator">Slide 1</span>
+    <br><br>
+
+    <!-- CONTENEDOR DEL EDITOR COMPLETO -->
+    <div class="editor-container">
+
+        <!-- PANEL IZQUIERDO -->
+        <div class="slides-panel">
+            <div class="panel-header">
+                <h3>Slides</h3>
+                <button type="button" class="btn-new-slide" onclick="agregarDiapositiva()" title="Agregar nuevo slide">
+                    <span class="icon">+</span> Nuevo Slide
+                </button>
+            </div>
+            
+            <div class="slides-actions">
+                <button type="button" class="btn-action" onclick="duplicarSlide()" title="Duplicar slide actual">
+                    <span class="icon">📄</span>
+                </button>
+                <button type="button" class="btn-action" onclick="eliminarSlide()" title="Eliminar slide actual">
+                    <span class="icon">🗑️</span>
+                </button>
+                <button type="button" class="btn-action" onclick="reordenarSlides()" title="Reordenar slides">
+                    <span class="icon">⇅</span>
+                </button>
+            </div>
+            <div class="slides-jump">
+                <label class="muted" for="slide-jump">Ir a:</label>
+                <select id="slide-jump" class="input" aria-label="Ir a slide"></select>
+            </div>
+
+
+
+            <div id="lista-slides" class="slides-list"></div>
         </div>
 
-        <div class="row">
-          <button type="button" class="btn" id="zoom-out">−</button>
-          <span class="muted" id="zoom-level">100%</span>
-          <button type="button" class="btn" id="zoom-in">+</button>
-          <button type="button" class="btn" id="zoom-reset">Reset</button>
-          <button type="button" class="btn" id="full-preview">Pantalla completa</button>
-        </div>
-      </div>
-
-      <div class="stage" id="preview">
+        <!-- PREVIEW -->
+        <div class="preview-panel">
+            <div class="panel-header">
+                <h3>Vista Previa</h3>
+                <div class="preview-controls">
+                    <button type="button" class="btn-preview" onclick="slideAnterior()" id="btn-prev">◀</button>
+                    <span id="slide-position">1 / 1</span>
+                    <button type="button" class="btn-preview" onclick="slideSiguiente()" id="btn-next">▶</button>
+                </div>
+            </div>
+            
+            <div class="preview-box">
+                <div id="preview" class="stage">
         <div class="stage-inner">
           <h1 id="preview-title"></h1>
           <div id="preview-content"></div>
         </div>
-      </div>
+</div>
+            </div>
+            
+            <!-- <div class="preview-zoom">
+                <button type="button" class="btn-zoom" onclick="cambiarZoom(-0.1)">-</button>
+                <span id="zoom-level">100%</span>
+                <button type="button" class="btn-zoom" onclick="cambiarZoom(0.1)">+</button>
+            </div> -->
+        </div>
+
+        <!-- PANEL DERECHO -->
+        <div class="editor-options">
+            <div class="panel-header">
+                <h3>Editar Slide</h3>
+                <div class="slide-indicator" id="current-slide-indicator">Slide 1</div>
+            </div>
+
+            <div class="options-section">
+                <h4>Contenido</h4>
+
+<label>Título del Slide</label>
+<input type="text" id="slide-title" class="input" placeholder="Título del slide">
+
+<label>Contenido</label>
+<div class="content-toolbar">
+  <button type="button" class="tool-btn" onclick="formatearTexto('bold')" title="Negrita"><b>B</b></button>
+  <button type="button" class="tool-btn" onclick="formatearTexto('italic')" title="Itálica"><i>I</i></button>
+  <button type="button" class="tool-btn" onclick="formatearTexto('bullet')" title="Viñeta">•</button>
+  <button type="button" class="tool-btn" onclick="formatearTexto('number')" title="Numeración">1.</button>
+</div>
+<textarea id="slide-content" placeholder="Escribe el contenido de tu slide aquí..."></textarea>
+
+<div class="menu-item" id="add-text-btn">
+                    <span class="icon">T</span>
+                    <span class="text">Texto</span>
+                </div>
+
+            </div>
+
+            <div class="options-section">
+                <h4>Estilo</h4>
+                
+                <label>Color de Fondo</label>
+                <div class="color-grid">
+                    <div class="color-btn" style="background:#3b82f6" onclick="cambiarColor('#3b82f6')" data-color="#3b82f6"></div>
+                    <div class="color-btn" style="background:#10b981" onclick="cambiarColor('#10b981')" data-color="#10b981"></div>
+                    <div class="color-btn" style="background:#8b5cf6" onclick="cambiarColor('#8b5cf6')" data-color="#8b5cf6"></div>
+                    <div class="color-btn" style="background:#ef4444" onclick="cambiarColor('#ef4444')" data-color="#ef4444"></div>
+                    <div class="color-btn" style="background:#f97316" onclick="cambiarColor('#f97316')" data-color="#f97316"></div>
+                    <div class="color-btn" style="background:#6366f1" onclick="cambiarColor('#6366f1')" data-color="#6366f1"></div>
+                    <div class="color-btn" style="background:#06b6d4" onclick="cambiarColor('#06b6d4')" data-color="#06b6d4"></div>
+                    <div class="color-btn" style="background:#ec4899" onclick="cambiarColor('#ec4899')" data-color="#ec4899"></div>
+                    <div class="color-btn" style="background:#f59e0b" onclick="cambiarColor('#f59e0b')" data-color="#f59e0b"></div>
+                </div>
+                
+                <div class="color-custom">
+                    <label>Color Personalizado</label>
+                    <input type="color" id="custom-color" onchange="cambiarColor(this.value)" value="#3b82f6">
+                </div>
+
+                <label>Tamaño de Fuente</label>
+                <select id="font-size" onchange="actualizarSlide()">
+                    <option value="18px">Pequeño</option>
+                    <option value="22px">Mediano</option>
+                    <option value="28px" selected>Grande</option>
+                    <option value="36px">Muy Grande</option>
+                    <option value="42px">Extra Grande</option>
+                </select>
+                
+                <label>Alineación de Texto</label>
+                <div class="alignment-buttons">
+                    <button type="button" class="align-btn" onclick="cambiarAlineacion('left')" title="Alinear a la izquierda">◀</button>
+                    <button type="button" class="align-btn" onclick="cambiarAlineacion('center')" title="Centrar">●</button>
+                    <button type="button" class="align-btn" onclick="cambiarAlineacion('right')" title="Alinear a la derecha">▶</button>
+                </div>
+            </div>
+        </div>
+
     </div>
-  </section>
 
-  <!-- RIGHT: editor -->
-  <section class="panel">
-    <header>
-      <h3>Editar</h3>
-      <span class="muted">Propiedades</span>
-    </header>
+    <!-- JSON FINAL -->
+    <input type="hidden" id="data" name="data">
+    <input type="hidden" name="id" value="<?= $id ?>">
 
-    <form method="POST" action="guardar.php" id="editor-form" class="form">
-      <input type="hidden" name="id" value="<?= htmlspecialchars($data["id"] ?? "") ?>">
-      <input type="hidden" id="data" name="data" value="">
+    <div class="form-actions">
+        <button type="button" class="btn-secondary" onclick="previsualizarPresentacion()">Vista Previa Completa</button>
+        <button type="submit" class="btn-primary">Guardar Presentación</button>
+    </div>
 
-      <div>
-        <label>Título de la Presentación</label>
-        <input type="text" name="titulo" value="<?= htmlspecialchars($data["titulo"] ?? "") ?>" />
-      </div>
+</form>
 
-      <div>
-        <label>Descripción</label>
-        <input type="text" name="descripcion" value="<?= htmlspecialchars($data["descripcion"] ?? "") ?>" />
-      </div>
-
-      <hr style="border:0;border-top:1px solid rgba(255,255,255,.08);width:100%;">
-
-      <div>
-        <label>Título del Slide</label>
-        <input type="text" id="slide-title" />
-      </div>
-
-      <div>
-        <label>Contenido del Slide</label>
-        <div class="row" style="margin-top:8px;">
-          <button type="button" class="toolbar-btn" id="tool-bold" title="Negrita"><b>B</b></button>
-          <button type="button" class="toolbar-btn" id="tool-italic" title="Itálica"><i>I</i></button>
+<!-- MODAL PARA VISTA PREVIA COMPLETA -->
+<div id="preview-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Vista Previa de la Presentación</h2>
+            <button type="button" class="close-modal" onclick="cerrarModal()">×</button>
         </div>
-        <textarea id="slide-content" placeholder="Escribe aquí..."></textarea>
-      </div>
-
-      <div class="options-section">
-        <label>Fondo del slide</label>
-        <div class="color-grid">
-          <button type="button" class="color-btn" data-bgcolor="#111827" style="background:#111827"></button>
-          <button type="button" class="color-btn" data-bgcolor="#1e3a8a" style="background:#1e3a8a"></button>
-          <button type="button" class="color-btn" data-bgcolor="#2563eb" style="background:#2563eb"></button>
-          <button type="button" class="color-btn" data-bgcolor="#16a34a" style="background:#16a34a"></button>
-          <button type="button" class="color-btn" data-bgcolor="#e11d48" style="background:#e11d48"></button>
-          <button type="button" class="color-btn" data-bgcolor="#7c3aed" style="background:#7c3aed"></button>
+        <div class="modal-body">
+            <div id="full-preview" class="full-preview"></div>
+            <div class="modal-controls">
+                <button type="button" class="btn-preview" onclick="cambiarSlideModal(-1)">◀ Anterior</button>
+                <span id="modal-slide-position">Slide 1 de 1</span>
+                <button type="button" class="btn-preview" onclick="cambiarSlideModal(1)">Siguiente ▶</button>
+            </div>
         </div>
-        <div style="margin-top:10px;">
-          <label>Color personalizado</label>
-          <input type="color" id="custom-color" value="#111827" style="width:100%;height:40px;border:0;border-radius:10px;">
-        </div>
-      </div>
-
-      <div class="options-section">
-        <label>Tamaño del título</label>
-        <select id="slide-size">
-          <option value="28px">28px</option>
-          <option value="34px" selected>34px</option>
-          <option value="40px">40px</option>
-          <option value="48px">48px</option>
-          <option value="56px">56px</option>
-        </select>
-      </div>
-
-      <div class="options-section">
-        <label>Alineación</label>
-        <div class="alignment-buttons">
-          <button type="button" class="align-btn" id="align-left">⯇</button>
-          <button type="button" class="align-btn active" id="align-center">≡</button>
-          <button type="button" class="align-btn" id="align-right">⯈</button>
-        </div>
-      </div>
-
-      <div class="options-section">
-        <label>Canvas</label>
-        <button type="button" class="btn" id="add-text-btn">+ Texto libre</button>
-
-        <div id="text-controls" style="display:none; margin-top:10px;">
-          <label>Tamaño texto seleccionado</label>
-          <input type="number" id="text-font-size" min="8" max="200" value="18">
-          <div class="row" style="margin-top:8px;">
-            <button type="button" class="btn" id="text-bold-btn"><b>B</b></button>
-            <span class="muted">Tip: Delete/Backspace elimina, click derecho elimina</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="row" style="justify-content:space-between; margin-top:6px;">
-        <button type="submit" class="btn primary">Guardar</button>
-        <button type="button" class="btn" onclick="window.location='index.php'">Salir</button>
-      </div>
-    </form>
-  </section>
+    </div>
 </div>
 
-<!-- Modal preview -->
-<div id="preview-modal">
-  <div class="modal-card">
-    <div class="modal-head">
-      <div class="row" style="gap:10px;">
-        <strong id="modal-slide-title">Vista previa</strong>
-        <span class="muted" id="modal-slide-position">Slide 1 de 1</span>
-      </div>
-      <div class="row">
-        <button type="button" class="btn" id="modal-prev">◀</button>
-        <button type="button" class="btn" id="modal-next">▶</button>
-        <button type="button" class="btn" id="modal-close">Cerrar</button>
-      </div>
-    </div>
-    <div class="modal-body" id="modal-slide-body"></div>
-  </div>
-</div>
-
-<!-- Datos iniciales (diapositivas) para editor.js -->
-<script id="initial-data" type="application/json"><?= json_encode($slides, JSON_UNESCAPED_UNICODE) ?></script>
-<script src="../js/editor.js"></script>
-
+<!-- ========== LÓGICA DEL EDITOR MEJORADA ========== -->
+<script src="../js/editor.js?v=1"></script>
 </body>
 </html>
